@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM</title>
+<style>
+  :root {
+    --anthracite-900: #f4f2ed;   /* Seitenhintergrund (hell, warmes Off-White) */
+    --anthracite-800: #ffffff;   /* Karten/Panel-Hintergrund */
+    --anthracite-700: #f3f1ec;   /* Hover/zweiter Hintergrund */
+    --anthracite-600: #e9e5db;
+    --anthracite-line: #e3ddd0;  /* Rahmenfarbe */
+    --gold: #b8923f;
+    --gold-soft: #8a6a28;        /* dunkleres Gold für lesbaren Text auf Weiss */
+    --cream: #262319;            /* Haupttextfarbe (dunkel) */
+    --cream-dim: #7c7566;        /* gedämpfte/sekundäre Textfarbe */
+    --red: #b5433a;
+    --amber: #a97a1f;
+    --green: #4f7a49;
+    --shadow: 0 1px 2px rgba(38,35,25,0.06), 0 1px 8px rgba(38,35,25,0.04);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--anthracite-900);
+    color: var(--cream);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
+  .masthead {
+    display: flex; align-items: baseline; justify-content: space-between;
+    border-bottom: 1px solid var(--anthracite-line);
+    padding-bottom: 16px; margin-bottom: 20px; flex-wrap: wrap; gap: 8px;
+  }
+  .masthead h1 {
+    font-family: Georgia, "Times New Roman", serif; font-weight: 400;
+    font-size: 26px; letter-spacing: 0.02em; margin: 0; color: var(--cream);
+  }
+  .masthead h1 em { font-style: italic; color: var(--gold-soft); }
+  .masthead .meta { color: var(--cream-dim); font-size: 12.5px; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--anthracite-line); }
+  .tab {
+    padding: 10px 16px; cursor: pointer; color: var(--cream-dim);
+    font-size: 16px; font-weight: 700; border-bottom: 2px solid transparent; user-select: none;
+  }
+  .tab:hover { color: var(--cream); }
+  .tab.active { color: var(--gold-soft); border-bottom-color: var(--gold); }
+  .tab .count {
+    display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 8px;
+    background: var(--anthracite-700); color: var(--cream-dim); font-size: 11px;
+  }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .toolbar input[type=text] { flex: 1; min-width: 180px; }
+
+  input[type=text], input[type=email], input[type=tel], input[type=date], select, textarea {
+    background: var(--anthracite-700); border: 1px solid var(--anthracite-line);
+    color: var(--cream); padding: 9px 10px; border-radius: 6px; font-size: 13.5px;
+    font-family: inherit; width: 100%;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  label { display: block; font-size: 12px; color: var(--cream-dim); margin-bottom: 4px; }
+
+  button {
+    background: var(--anthracite-700); border: 1px solid var(--anthracite-line);
+    color: var(--cream); padding: 9px 14px; border-radius: 6px; font-size: 13px;
+    cursor: pointer; font-family: inherit;
+  }
+  button:hover { border-color: var(--gold); color: var(--gold-soft); }
+  button.primary { background: var(--gold); border-color: var(--gold); color: var(--cream); font-weight: 600; }
+  button.primary:hover { background: var(--gold-soft); color: #fff; }
+  button.ghost { background: transparent; border-color: transparent; color: var(--cream-dim); padding: 6px 8px; }
+  button.ghost:hover { color: var(--red); border-color: transparent; }
+  button.small { padding: 5px 9px; font-size: 12px; }
+
+  .panel {
+    background: var(--anthracite-800); border: 1px solid var(--anthracite-line);
+    border-radius: 8px; padding: 18px 20px; margin-bottom: 20px; box-shadow: var(--shadow);
+  }
+  .panel h2 {
+    font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 15px;
+    color: var(--gold-soft); margin: 0 0 14px 0;
+  }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11.5px; text-transform: none; color: var(--cream-dim); font-weight: 400; padding: 8px 10px; border-bottom: 1px solid var(--anthracite-line); }
+  td { padding: 10px; border-bottom: 1px solid var(--anthracite-700); font-size: 13.5px; vertical-align: top; }
+  tr.contact-row { cursor: pointer; }
+  tr.contact-row:hover td { background: var(--anthracite-700); }
+  .empty-row td { color: var(--cream-dim); text-align: center; padding: 30px 10px; }
+
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--anthracite-700); color: var(--cream-dim); }
+  .pill.green { color: var(--green); }
+  .pill.amber { color: var(--amber); }
+  .pill.red { color: var(--red); }
+
+  .grid-2col { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .grid-2col { grid-template-columns: 1fr; } }
+
+  .contact-detail .name { font-family: Georgia, serif; font-size: 19px; color: var(--cream); margin: 0 0 2px 0; }
+  .contact-detail .firma { color: var(--gold-soft); font-size: 13px; margin-bottom: 14px; }
+  .contact-detail .field { font-size: 13px; margin-bottom: 6px; color: var(--cream-dim); }
+  .contact-detail .field b { color: var(--cream); font-weight: 400; }
+  .contact-detail .header-row { display: flex; gap: 14px; align-items: flex-start; }
+
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    background: var(--anthracite-700); color: var(--gold-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-family: Georgia, serif; font-size: 15px; overflow: hidden;
+    border: 1px solid var(--anthracite-line);
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .avatar.small { width: 30px; height: 30px; font-size: 12px; }
+  .avatar.large { width: 56px; height: 56px; font-size: 19px; }
+  .row-with-avatar { display: flex; align-items: center; gap: 10px; }
+
+  .quick-links { display: flex; gap: 8px; margin: 10px 0 4px; flex-wrap: wrap; }
+  .quick-links a {
+    font-size: 11.5px; color: var(--cream-dim); text-decoration: none;
+    border: 1px solid var(--anthracite-line); border-radius: 6px; padding: 4px 9px;
+  }
+  .quick-links a:hover { color: var(--gold-soft); border-color: var(--gold); }
+
+  .import-box textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; min-height: 110px;
+  }
+  .import-hint { font-size: 11.5px; color: var(--cream-dim); margin: 6px 0 12px; }
+  .import-result { font-size: 12.5px; margin-top: 10px; color: var(--gold-soft); }
+
+  .sub-tabs { display: flex; gap: 2px; margin-bottom: 14px; flex-wrap: wrap; }
+  .sub-tab { padding: 7px 12px; font-size: 12.5px; color: var(--cream-dim); cursor: pointer; border-radius: 6px; }
+  .sub-tab:hover { color: var(--cream); }
+  .sub-tab.active { background: var(--anthracite-700); color: var(--gold-soft); }
+  .sub-view { display: none; }
+  .sub-view.active { display: block; }
+
+  .empty-state { color: var(--cream-dim); font-size: 13px; padding: 22px 10px; text-align: center; border: 1px dashed var(--anthracite-line); border-radius: 6px; }
+
+  .pipeline-col { flex: 0 0 240px; }
+  .pipeline-col-head {
+    display: inline-block; margin-bottom: 10px; font-size: 12.5px; font-weight: 700;
+    padding: 5px 12px; border-radius: var(--radius); color: #fff;
+  }
+  .pipeline-col-head .count { color: rgba(255,255,255,0.85); font-weight: 400; }
+  .pipeline-col-body { min-height: 60px; max-height: 65vh; overflow-y: auto; border-radius: 8px; padding: 4px; transition: background 0.15s; }
+  .pipeline-col-body.drag-over { background: var(--anthracite-700); }
+  .pipeline-card {
+    background: var(--anthracite-800); border: 1px solid var(--anthracite-line); border-radius: 8px;
+    box-shadow: var(--shadow); padding: 10px 12px; margin-bottom: 8px; cursor: grab;
+  }
+  .pipeline-card:active { cursor: grabbing; }
+  .pipeline-card .name { font-size: 13px; font-weight: 600; color: var(--cream); margin-bottom: 2px; }
+  .pipeline-card .firma { font-size: 11.5px; color: var(--gold-soft); }
+
+  .contact-card-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px; margin-bottom: 20px;
+  }
+  .contact-card {
+    background: var(--anthracite-800); border: 1px solid var(--anthracite-line); border-radius: 8px;
+    box-shadow: var(--shadow); padding: 12px; cursor: pointer; display: flex; gap: 10px; align-items: center;
+  }
+  .contact-card:hover { border-color: var(--gold); }
+  .contact-card.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+  .contact-card .info { min-width: 0; }
+  .contact-card .name { font-size: 13px; font-weight: 600; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact-card .firma { font-size: 11.5px; color: var(--gold-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .empty-state .hint { font-size: 11.5px; margin-top: 6px; color: var(--anthracite-line); }
+
+  .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--anthracite-700); }
+  .task-item input[type=checkbox] { margin-top: 3px; }
+  .task-item.done .task-text { color: var(--cream-dim); text-decoration: line-through; }
+  .task-text { flex: 1; font-size: 13.5px; }
+  .task-meta { font-size: 11.5px; color: var(--cream-dim); }
+  .task-meta.overdue { color: var(--red); }
+
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    align-items: center; justify-content: center; z-index: 50; padding: 20px;
+  }
+  .modal-backdrop.active { display: flex; }
+  .modal { background: var(--anthracite-800); border: 1px solid var(--anthracite-line); border-radius: 8px; padding: 22px; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(38,35,25,0.18); }
+  .modal h2 { margin-top: 0; }
+
+  .toast {
+    position: fixed; bottom: 20px; right: 20px; background: var(--anthracite-700);
+    border: 1px solid var(--gold); color: var(--cream); padding: 10px 16px; border-radius: 6px;
+    font-size: 13px; opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="loginGate" style="display:none; position:fixed; inset:0; background:var(--anthracite-900); align-items:center; justify-content:center; z-index:200;">
+  <div style="text-align:center; max-width:340px;">
+    <h1 style="font-family:Georgia,serif; font-weight:400; font-size:24px; margin-bottom:20px;">kawea <em style="color:var(--gold-soft); font-style:italic;">CRM</em></h1>
+    <button class="primary" onclick="signIn()" style="padding:10px 22px;">Mit Google anmelden</button>
+    <div id="loginError" style="color:var(--red); font-size:12.5px; margin-top:14px;"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <h1>kawea <em>CRM</em></h1>
+    <div class="meta" id="fbStatus">Verbinde… <a href="#" onclick="signOutUser(); return false;" style="color:var(--cream-dim);">(abmelden)</a></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab" data-view="contacts">Kontakte <span class="count" id="countContacts">0</span></div>
+    <div class="tab" data-view="tasks">Aufgaben <span class="count" id="countTasks">0</span></div>
+    <div class="tab" data-view="calendar">Kalender</div>
+    <div class="tab" data-view="phonecontacts">iPhone-Kontakte <span class="count" id="countPhoneContacts">0</span></div>
+    <div class="tab active" data-view="pipeline">Pipeline</div>
+  </div>
+
+  <!-- KONTAKTE -->
+  <div class="view" id="view-contacts">
+    <div class="toolbar">
+      <input type="text" id="contactSearch" placeholder="Kontakt suchen…">
+      <button class="primary" id="btnNewContact">+ Kontakt</button>
+    </div>
+    <div id="contactCardGrid" class="contact-card-grid"></div>
+
+    <div class="panel contact-detail" id="contactDetailPanel" style="display:none;">
+      <div class="empty-state">Wähle oben einen Kontakt aus<br>oder lege einen neuen an.</div>
+    </div>
+
+    <div class="panel import-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h2 style="margin:0;">Kontakte exportieren / importieren</h2>
+        <button class="small" onclick="exportContacts()">↓ Alle exportieren</button>
+      </div>
+      <p class="import-hint">
+        Eine Zeile pro Kontakt, Felder getrennt durch Komma:<br>
+        <code>Name, Firma, E-Mail, Festnetz, Mobil, Adresse, PLZ, Ort, Website</code><br>
+        Leere Felder einfach weglassen (z. B. <code>Beispiel AG, , info@beispiel.ch, , , , , Zürich, beispiel.ch</code>).
+        Kontakte mit gleicher E-Mail-Adresse werden automatisch aktualisiert statt doppelt angelegt.
+      </p>
+      <input type="file" id="importFileInput" accept=".csv,.txt" style="display:none;" onchange="handleImportFile(event)">
+      <div class="form-actions" style="justify-content:flex-start; margin-bottom:10px;">
+        <button class="small" onclick="document.getElementById('importFileInput').click()">📁 Datei auswählen</button>
+      </div>
+      <textarea id="importText" placeholder="Max Muster, Muster AG, max@muster.ch, 044 123 45 67, 079 123 45 67, Bahnhofstrasse 1, 8001, Zürich, muster.ch"></textarea>
+      <div class="form-actions" style="justify-content:flex-start; margin-top:10px;">
+        <button class="primary" id="btnImportContacts">Importieren</button>
+      </div>
+      <div class="import-result" id="importResult"></div>
+    </div>
+  </div>
+
+  <!-- AUFGABEN -->
+  <div class="view" id="view-tasks">
+    <div class="toolbar" style="justify-content:flex-end;">
+      <button class="primary" onclick="openTaskModal(null)">+ Aufgabe</button>
+    </div>
+    <div class="panel">
+      <h2>Offene Wiedervorlagen</h2>
+      <div id="taskListOpen"></div>
+    </div>
+    <div class="panel">
+      <h2>Erledigt</h2>
+      <div id="taskListDone"></div>
+    </div>
+  </div>
+
+  <!-- KALENDER -->
+  <div class="view" id="view-calendar">
+    <div class="panel">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <button class="small" onclick="shiftCalendarMonth(-1)">‹ Vorheriger</button>
+        <h2 id="calendarMonthLabel" style="margin:0;"></h2>
+        <button class="small" onclick="shiftCalendarMonth(1)">Nächster ›</button>
+      </div>
+      <div id="calendarList"></div>
+    </div>
+  </div>
+
+  <!-- IPHONE-KONTAKTE -->
+  <div class="view" id="view-phonecontacts">
+    <div class="panel">
+      <h2>iPhone-/iCloud-Kontakte</h2>
+      <p style="font-size:12.5px; color:var(--cream-dim); margin-top:-6px;">
+        Automatisch zugeordnete Kontakte sind ausgeblendet – hier siehst du nur die, die noch verknüpft werden können.
+      </p>
+      <input type="text" id="phoneContactSearch" placeholder="Kontakt suchen…" style="margin-bottom:12px;" oninput="renderPhoneContacts()">
+      <div id="phoneContactList"></div>
+    </div>
+  </div>
+
+  <!-- PIPELINE -->
+  <div class="view active" id="view-pipeline">
+    <input type="text" id="pipelineSearch" placeholder="Kontakt suchen…" style="margin-bottom:14px;" oninput="renderPipeline()">
+    <div id="pipelineBoard" style="display:flex; gap:14px; overflow-x:auto; align-items:flex-start;"></div>
+  </div>
+
+</div>
+
+<!-- Kontakt-Modal -->
+<div class="modal-backdrop" id="contactModalBackdrop">
+  <div class="modal">
+    <h2 id="contactModalTitle">Neuer Kontakt</h2>
+    <div class="form-grid">
+      <div class="full"><label>Name *</label><input type="text" id="f-name" placeholder="Vorname Nachname" oninput="updateModalSearchLinks()"></div>
+      <div class="full"><label>Firma</label><input type="text" id="f-firma" oninput="updateModalSearchLinks()"></div>
+      <div class="full quick-links" id="modalSearchLinks">
+        <a href="#" id="linkTelSearch" target="_blank" rel="noopener">🔍 tel.search.ch ↗</a>
+        <a href="#" id="linkGoogle" target="_blank" rel="noopener">🔍 Google ↗</a>
+      </div>
+      <div class="full">
+        <label>Text von tel.search.ch/Google reinkopieren (füllt Felder automatisch)</label>
+        <textarea id="f-pastebox" placeholder="z. B. den kopierten Treffer-Text von tel.search.ch hier einfügen…" style="min-height:60px;"></textarea>
+        <button type="button" class="small" style="margin-top:6px;" onclick="autofillFromPaste()">↳ Automatisch ausfüllen</button>
+      </div>
+      <div><label>E-Mail</label><input type="email" id="f-email"></div>
+      <div><label>Mobil</label><input type="tel" id="f-mobil"></div>
+      <div><label>Festnetz</label><input type="tel" id="f-telefon"></div>
+      <div class="full"><label>Website (für automatisches Logo)</label><input type="text" id="f-website" placeholder="z. B. firma.ch"></div>
+      <div class="full"><label>Adresse</label><input type="text" id="f-adresse" placeholder="Strasse Nr."></div>
+      <div><label>PLZ</label><input type="text" id="f-plz"></div>
+      <div><label>Ort</label><input type="text" id="f-ort"></div>
+      <div class="full"><label>Notiz</label><textarea id="f-notiz" placeholder="Interne Notiz zu diesem Kontakt…"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="ghost" id="btnDeleteContact" style="display:none;">Kontakt löschen</button>
+      <button id="btnCancelContact">Abbrechen</button>
+      <button class="primary" id="btnSaveContact">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aufgabe-Modal -->
+<div class="modal-backdrop" id="taskModalBackdrop">
+  <div class="modal">
+    <h2>Neue Wiedervorlage</h2>
+    <div class="form-grid">
+      <div class="full"><label>Was?</label><input type="text" id="t-text" placeholder="z. B. Offerte nachfassen"></div>
+      <div><label>Fällig am</label><input type="date" id="t-datum"></div>
+    </div>
+    <div class="form-actions">
+      <button id="btnCancelTask">Abbrechen</button>
+      <button class="primary" id="btnSaveTask">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Termin-Kontakt-Modal -->
+<div class="modal-backdrop" id="eventAssignModalBackdrop">
+  <div class="modal">
+    <h2 id="eventAssignTitle">Kontakt zuordnen</h2>
+    <input type="text" id="eventAssignSearch" placeholder="Kontakt suchen…" oninput="renderEventAssignResults()">
+    <div id="eventAssignResults" style="max-height:280px; overflow-y:auto; margin-top:10px;"></div>
+    <div class="form-actions">
+      <button id="btnCancelEventAssign">Schliessen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aktivität-Modal -->
+<div class="modal-backdrop" id="activityModalBackdrop">
+  <div class="modal">
+    <h2>Aktivität protokollieren</h2>
+    <div class="form-grid">
+      <div class="full">
+        <label>Typ</label>
+        <select id="act-typ">
+          <option value="notiz">Notiz</option>
+          <option value="anruf">Anruf</option>
+          <option value="email">E-Mail</option>
+          <option value="meeting">Meeting</option>
+        </select>
+      </div>
+      <div class="full"><label>Was ist passiert?</label><textarea id="act-text" placeholder="z. B. Angebot besprochen, Kunde interessiert an Zusatzartikeln…"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button id="btnCancelActivity">Abbrechen</button>
+      <button class="primary" id="btnSaveActivity">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mitarbeiter-Modal -->
+<div class="modal-backdrop" id="employeeModalBackdrop">
+  <div class="modal">
+    <h2 id="employeeModalTitle">Neuer Mitarbeiter</h2>
+    <div class="form-grid">
+      <div class="full"><label>Name *</label><input type="text" id="emp-name"></div>
+      <div class="full"><label>Position/Funktion</label><input type="text" id="emp-position" placeholder="z. B. Einkauf, Geschäftsführung"></div>
+      <div><label>E-Mail</label><input type="email" id="emp-email"></div>
+      <div><label>Mobil</label><input type="tel" id="emp-mobil"></div>
+      <div><label>Festnetz</label><input type="tel" id="emp-telefon"></div>
+    </div>
+    <div class="form-actions">
+      <button class="ghost" id="btnDeleteEmployee" style="display:none;">Entfernen</button>
+      <button id="btnCancelEmployee">Abbrechen</button>
+      <button class="primary" id="btnSaveEmployee">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
+<script>
+// Gleiches Firebase-Projekt wie das Lagersystem (kawea/TrendSENSE) —
+// so lassen sich Kontakte später zwischen CRM und Lagersystem teilen,
+// ohne Daten migrieren zu müssen.
+const firebaseConfig = {
+  apiKey: "AIzaSyCv4JKZlDkgQ_6m2hkxSnaQy4lwOh36M8I",
+  authDomain: "datenbank-1-26686.firebaseapp.com",
+  projectId: "datenbank-1-26686",
+  storageBucket: "datenbank-1-26686.firebasestorage.app",
+  messagingSenderId: "220363121075",
+  appId: "1:220363121075:web:79a1a660d8ce68df2b6bc6"
+};
+
+let fbDb = null;
+let fbStorage = null;
+const ALLOWED_EMAIL = "kaweagmbh.schweiz@gmail.com"; // Nur dieses Konto darf sich einloggen
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  fbDb = firebase.firestore();
+  fbDb.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
+  fbStorage = firebase.storage();
+  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+} catch (e) {
+  fbDb = null;
+}
+
+function showLoginGate(show) {
+  document.getElementById('loginGate').style.display = show ? 'flex' : 'none';
+  document.querySelector('.wrap').style.display = show ? 'none' : 'block';
+}
+
+function signIn() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider).catch(err => {
+    document.getElementById('loginError').textContent = 'Anmeldung fehlgeschlagen: ' + err.message;
+  });
+}
+
+function signOutUser() {
+  firebase.auth().signOut();
+}
+
+firebase.auth().onAuthStateChanged(user => {
+  if (user && user.email === ALLOWED_EMAIL) {
+    showLoginGate(false);
+    document.getElementById('fbStatus').innerHTML = 'Verbunden als ' + user.email + ' <a href="#" onclick="signOutUser(); return false;" style="color:var(--cream-dim);">(abmelden)</a>';
+    fbLoadAll();
+  } else if (user) {
+    // Eingeloggt, aber falsches Konto — sofort wieder ausloggen
+    document.getElementById('loginError').textContent = 'Dieses Konto (' + user.email + ') hat keinen Zugriff.';
+    firebase.auth().signOut();
+    showLoginGate(true);
+  } else {
+    showLoginGate(true);
+  }
+});
+</script>
+<script>
+// ---------- State ----------
+let contacts = [];      // crmContacts
+let tasks = [];         // crmTasks
+let offers = [];        // crmOffers   (befüllt durch künftigen Bexio-Sync)
+let invoices = [];      // crmInvoices (befüllt durch künftigen Bexio-Sync)
+let events = [];        // crmEvents   (befüllt durch künftigen Outlook-Sync)
+let activities = [];    // crmActivities (Aktivitätsverlauf: Notizen, Anrufe, Meetings)
+let phoneContacts = []; // crmPhoneContacts (iPhone/iCloud-Adressbuch)
+let selectedContactId = null;
+let editingContactId = null;
+let taskModalContactId = null;
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function touchContact(contactId) {
+  if (!fbDb || !contactId) return;
+  try {
+    await fbDb.collection('crmContacts').doc(contactId).update({ lastActivityAt: new Date().toISOString() });
+  } catch (e) { /* stiller Fehlschlag, nicht kritisch */ }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function fmtBetrag(v) {
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return (v !== undefined && v !== null && v !== '' && !isNaN(n)) ? n.toFixed(2) + ' CHF' : '';
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// ---------- Firestore helpers ----------
+async function fbLoadAll() {
+  if (!fbDb) { document.getElementById('fbStatus').textContent = 'Offline (lokal)'; return; }
+
+  fbDb.collection('crmContacts').onSnapshot(snap => {
+    contacts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    contacts.sort((a, b) => {
+      const ta = a.lastActivityAt ? Date.parse(a.lastActivityAt) : 0;
+      const tb = b.lastActivityAt ? Date.parse(b.lastActivityAt) : 0;
+      if (ta !== tb) return tb - ta; // neueste Aktivität zuerst
+      return (a.name || '').localeCompare(b.name || ''); // Rest alphabetisch
+    });
+    renderContacts();
+    renderCalendar();
+    renderPipeline();
+    if (selectedContactId) renderContactDetail(selectedContactId);
+  });
+  fbDb.collection('crmTasks').orderBy('faelligAm').onSnapshot(snap => {
+    tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTasks();
+    if (selectedContactId) renderContactDetail(selectedContactId);
+  });
+  // Offers/invoices/events: Collections existieren erst nach dem ersten Sync-Lauf.
+  fbDb.collection('crmOffers').onSnapshot(snap => {
+    offers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (selectedContactId) renderContactDetail(selectedContactId);
+  }, () => {});
+  fbDb.collection('crmInvoices').onSnapshot(snap => {
+    invoices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (selectedContactId) renderContactDetail(selectedContactId);
+  }, () => {});
+  fbDb.collection('crmEvents').onSnapshot(snap => {
+    events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderCalendar();
+    if (selectedContactId) renderContactDetail(selectedContactId);
+  }, () => {});
+  fbDb.collection('crmActivities').onSnapshot(snap => {
+    activities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (selectedContactId) renderContactDetail(selectedContactId);
+  }, () => {});
+  fbDb.collection('crmPhoneContacts').onSnapshot(snap => {
+    phoneContacts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderPhoneContacts();
+  }, () => {});
+}
+
+// ---------- Kontakte: Liste ----------
+function renderContacts() {
+  const q = (document.getElementById('contactSearch').value || '').toLowerCase();
+  const grid = document.getElementById('contactCardGrid');
+  const filtered = contacts.filter(c =>
+    !q || (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q)
+  );
+  document.getElementById('countContacts').textContent = contacts.length;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Keine Kontakte gefunden.</div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(c => `
+    <div class="contact-card${c.id === selectedContactId ? ' selected' : ''}" data-id="${c.id}" style="background:color-mix(in srgb, ${getStageColor(c.status)} 38%, var(--anthracite-800));">
+      ${avatarHtml(c, 'small')}
+      <div class="info">
+        <div class="name">${escapeHtml(c.name || '')}</div>
+        ${c.firma ? `<div class="firma">${escapeHtml(c.firma)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.contact-card').forEach(card => {
+    card.addEventListener('click', () => selectContact(card.dataset.id));
+  });
+}
+
+function initials(c) {
+  const src = (c.firma || c.name || '?').trim();
+  const parts = src.split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+
+function domainFromWebsite(website) {
+  if (!website) return null;
+  try {
+    const url = website.match(/^https?:\/\//) ? website : `https://${website}`;
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch (e) {
+    return null;
+  }
+}
+
+function avatarHtml(c, size) {
+  const domain = domainFromWebsite(c.website);
+  const cls = `avatar${size ? ' ' + size : ''}`;
+  if (domain) {
+    // Clearbit's public logo endpoint: kein API-Key noetig, liefert bei unbekannter
+    // Domain ein generisches Bild -> bei Fehler (onerror) auf Initialen zurueckfallen.
+    return `<div class="${cls}"><img src="https://logo.clearbit.com/${domain}?size=128" alt=""
+      onerror="var p=this.parentElement; p.style.background='var(--anthracite-700)'; p.textContent='${initials(c)}';"></div>`;
+  }
+  return `<div class="${cls}">${initials(c)}</div>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+// ---------- Kontakt-Detail ----------
+function selectContact(id) {
+  selectedContactId = id;
+  renderContactDetail(id);
+  renderContacts();
+  const panel = document.getElementById('contactDetailPanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderContactDetail(id) {
+  const c = contacts.find(x => x.id === id);
+  const panel = document.getElementById('contactDetailPanel');
+  if (!c) {
+    panel.style.display = 'none';
+    panel.innerHTML = `<div class="empty-state">Wähle oben einen Kontakt aus<br>oder lege einen neuen an.</div>`;
+    return;
+  }
+  const contactOffers = offers.filter(o => o.contactId === id);
+  const contactInvoices = invoices.filter(i => i.contactId === id);
+  const contactEvents = events.filter(e => e.contactId === id);
+  const contactTasks = tasks.filter(t => t.contactId === id).sort((a,b) => (a.faelligAm||'').localeCompare(b.faelligAm||''));
+
+  const linkedCompany = c.firmaKontaktId ? contacts.find(x => x.id === c.firmaKontaktId) : null;
+  const linkedEmployees = contacts.filter(x => x.firmaKontaktId === c.id);
+
+  const searchQuery = encodeURIComponent([c.firma || c.name, c.ort].filter(Boolean).join(' '));
+  panel.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:start;">
+      <div class="header-row">
+        ${avatarHtml(c, 'large')}
+        <div>
+          <p class="name">${escapeHtml(c.name || '')}</p>
+          ${c.firma ? `<p class="firma">${escapeHtml(c.firma)}</p>` : ''}
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="small" onclick="openContactModal('${c.id}')">Bearbeiten</button>
+        <button class="small ghost" onclick="deleteContactFromDetail('${c.id}')">Löschen</button>
+      </div>
+    </div>
+    ${c.email ? `<div class="field">✉ <b>${escapeHtml(c.email)}</b></div>` : ''}
+    ${c.mobil ? `<div class="field">📱 <b>${escapeHtml(c.mobil)}</b></div>` : ''}
+    ${c.telefon ? `<div class="field">☎ <b>${escapeHtml(c.telefon)}</b></div>` : ''}
+    ${(c.adresse || c.ort) ? `<div class="field">${escapeHtml([c.adresse, [c.plz, c.ort].filter(Boolean).join(' ')].filter(Boolean).join(', '))}</div>` : ''}
+    ${c.website ? `<div class="field">🔗 <b>${escapeHtml(c.website)}</b></div>` : ''}
+    ${c.kundeSeit ? `<div class="field">⭐ Kunde seit <b>${fmtDate(c.kundeSeit.slice ? c.kundeSeit.slice(0,10) : c.kundeSeit)}</b></div>` : ''}
+    <div class="field" style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+      <span>Status:</span>
+      <select onchange="changeContactStatus('${c.id}', this.value)" style="width:auto; padding:4px 8px; font-size:12.5px;">
+        ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${(c.status || 'neu') === s.id ? 'selected' : ''}>${s.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field">
+      🏢 ${linkedCompany
+        ? `Gehört zu <b>${escapeHtml(linkedCompany.name)}</b> <a href="#" onclick="openCompanyLinkModal('${c.id}'); return false;" style="color:var(--cream-dim); margin-left:6px;">ändern</a>`
+        : `<a href="#" onclick="openCompanyLinkModal('${c.id}'); return false;" style="color:var(--cream-dim);">+ Firma verknüpfen</a>`}
+    </div>
+    ${linkedEmployees.length ? `
+      <div class="field" style="margin-top:2px;">
+        👥 Verknüpfte Mitarbeiter: ${linkedEmployees.map(e => escapeHtml(e.name)).join(', ')}
+      </div>
+    ` : ''}
+    <div class="quick-links">
+      <a href="https://tel.search.ch/?was=${searchQuery}" target="_blank" rel="noopener">tel.search.ch ↗</a>
+      <a href="https://www.google.com/search?q=${searchQuery}" target="_blank" rel="noopener">Google ↗</a>
+    </div>
+
+    <div class="sub-tabs" style="margin-top:16px;">
+      <div class="sub-tab active" data-sub="offers">Offerten <span class="count">${contactOffers.length}</span></div>
+      <div class="sub-tab" data-sub="invoices">Rechnungen <span class="count">${contactInvoices.length}</span></div>
+      <div class="sub-tab" data-sub="events">Termine <span class="count">${contactEvents.length}</span></div>
+      <div class="sub-tab" data-sub="mitarbeiter">Mitarbeiter <span class="count">${(c.mitarbeiter || []).length}</span></div>
+      <div class="sub-tab" data-sub="dokumente">Dokumente</div>
+      <div class="sub-tab" data-sub="notes">Notiz &amp; Aufgaben <span class="count">${contactTasks.length}</span></div>
+    </div>
+
+    <div class="sub-view active" data-sub="offers">${renderOfferList(contactOffers)}</div>
+    <div class="sub-view" data-sub="invoices">${renderInvoiceList(contactInvoices)}</div>
+    <div class="sub-view" data-sub="events">${renderEventList(contactEvents)}</div>
+    <div class="sub-view" data-sub="mitarbeiter">
+      <button class="small" onclick="openEmployeeModal('${c.id}')">+ Mitarbeiter</button>
+      <div style="margin-top:12px;">${renderEmployeeList(c)}</div>
+    </div>
+    <div class="sub-view" data-sub="dokumente">
+      <input type="file" id="docFileInput" style="display:none;" onchange="uploadDocument('${c.id}')">
+      <button class="small" onclick="document.getElementById('docFileInput').click()">+ Dokument hochladen</button>
+      <div id="docUploadStatus" style="font-size:12px; color:var(--cream-dim); margin-top:8px;"></div>
+      <div id="docList-${c.id}" style="margin-top:12px;">Lade Dokumente…</div>
+    </div>
+    <div class="sub-view" data-sub="notes">
+      ${c.notiz ? `<div class="field" style="white-space:pre-wrap; margin-bottom:14px;">${escapeHtml(c.notiz)}</div>` : ''}
+      <button class="small" onclick="openTaskModal('${c.id}')">+ Wiedervorlage</button>
+      <div style="margin-top:12px;">${renderTaskListInline(contactTasks)}</div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:22px; margin-bottom:8px;">
+        <span style="color:var(--gold-soft); font-size:12.5px;">Verlauf</span>
+        <button class="small" onclick="openActivityModal('${c.id}')">+ Aktivität</button>
+      </div>
+      ${renderActivityListInline(activities.filter(a => a.contactId === c.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||'')))}
+    </div>
+  `;
+
+  panel.querySelectorAll('.sub-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      panel.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+      panel.querySelectorAll('.sub-view').forEach(v => v.classList.remove('active'));
+      tab.classList.add('active');
+      panel.querySelector(`.sub-view[data-sub="${tab.dataset.sub}"]`).classList.add('active');
+      if (tab.dataset.sub === 'dokumente') loadDocumentList(c.id);
+    });
+  });
+}
+
+// ---------- Dokumente (Firebase Storage) ----------
+function docStoragePath(contactId) {
+  return `crmDocuments/${contactId}`;
+}
+
+async function loadDocumentList(contactId) {
+  const el = document.getElementById(`docList-${contactId}`);
+  if (!el) return;
+  if (!fbStorage) { el.innerHTML = `<div class="empty-state">Dokumente-Speicher nicht verfügbar.</div>`; return; }
+  try {
+    const res = await fbStorage.ref(docStoragePath(contactId)).listAll();
+    if (!res.items.length) { el.innerHTML = `<div class="empty-state">Noch keine Dokumente hochgeladen.</div>`; return; }
+    const items = await Promise.all(res.items.map(async item => {
+      const url = await item.getDownloadURL();
+      return { name: item.name, url };
+    }));
+    el.innerHTML = items.map(f => `
+      <div class="task-item">
+        <div style="flex:1;"><a href="${f.url}" target="_blank" rel="noopener" style="color:var(--cream);">${escapeHtml(decodeURIComponent(f.name.replace(/^\d+-/, '')))}</a></div>
+        <button class="small" onclick="deleteDocument('${contactId}', '${f.name}')">Löschen</button>
+      </div>
+    `).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state">Fehler beim Laden: ${escapeHtml(e.message || '')}</div>`;
+  }
+}
+
+async function uploadDocument(contactId) {
+  const input = document.getElementById('docFileInput');
+  const file = input.files[0];
+  if (!file || !fbStorage) return;
+  const statusEl = document.getElementById('docUploadStatus');
+  statusEl.textContent = `Lade hoch: ${file.name} …`;
+  try {
+    const safeName = `${Date.now()}-${file.name}`;
+    await fbStorage.ref(`${docStoragePath(contactId)}/${safeName}`).put(file);
+    statusEl.textContent = '';
+    toast('Dokument hochgeladen.');
+    loadDocumentList(contactId);
+    touchContact(contactId);
+  } catch (e) {
+    statusEl.textContent = `Fehler: ${e.message || e}`;
+  }
+  input.value = '';
+}
+
+async function deleteDocument(contactId, fileName) {
+  if (!fbStorage) return;
+  if (!confirm('Dieses Dokument wirklich löschen?')) return;
+  await fbStorage.ref(`${docStoragePath(contactId)}/${fileName}`).delete();
+  loadDocumentList(contactId);
+}
+
+function renderOfferList(list) {
+  if (!list.length) return `<div class="empty-state">Noch keine Offerten synchronisiert.<div class="hint">Erscheint hier automatisch, sobald der Bexio-Sync eingerichtet ist.</div></div>`;
+  return `<table><thead><tr><th>Nr.</th><th>Datum</th><th>Betrag</th><th>Status</th></tr></thead><tbody>
+    ${list.map(o => `<tr><td>${escapeHtml(o.nr||'')}</td><td>${fmtDate(o.datum)}</td><td>${fmtBetrag(o.betrag)}</td><td><span class="pill">${escapeHtml(o.status||'')}</span></td></tr>`).join('')}
+  </tbody></table>`;
+}
+function renderInvoiceList(list) {
+  if (!list.length) return `<div class="empty-state">Noch keine Rechnungen synchronisiert.<div class="hint">Erscheint hier automatisch, sobald der Bexio-Sync eingerichtet ist.</div></div>`;
+  return `<table><thead><tr><th>Nr.</th><th>Datum</th><th>Betrag</th><th>Status</th></tr></thead><tbody>
+    ${list.map(i => `<tr><td>${escapeHtml(i.nr||'')}</td><td>${fmtDate(i.datum)}</td><td>${fmtBetrag(i.betrag)}</td><td><span class="pill ${i.bezahlt?'green':'amber'}">${i.bezahlt?'Bezahlt':'Offen'}</span></td></tr>`).join('')}
+  </tbody></table>`;
+}
+function renderEventList(list) {
+  if (!list.length) return `<div class="empty-state">Noch keine Termine synchronisiert.<div class="hint">Erscheint hier automatisch, sobald die Outlook-Anbindung eingerichtet ist.</div></div>`;
+  return `<table><thead><tr><th>Titel</th><th>Datum</th></tr></thead><tbody>
+    ${list.map(e => `<tr><td>${escapeHtml(e.titel||'')}</td><td>${fmtDate(e.start)}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+function renderTaskListInline(list) {
+  if (!list.length) return `<div class="empty-state">Keine Wiedervorlagen für diesen Kontakt.</div>`;
+  const today = new Date().toISOString().slice(0,10);
+  return list.map(t => `
+    <div class="task-item ${t.erledigt?'done':''}">
+      <input type="checkbox" ${t.erledigt?'checked':''} onchange="toggleTask('${t.id}', this.checked)">
+      <div>
+        <div class="task-text">${escapeHtml(t.text||'')}</div>
+        ${t.faelligAm ? `<div class="task-meta ${(!t.erledigt && t.faelligAm < today) ? 'overdue' : ''}">Fällig: ${fmtDate(t.faelligAm)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+const ACTIVITY_LABELS = { notiz: 'Notiz', anruf: 'Anruf', email: 'E-Mail', meeting: 'Meeting' };
+const ACTIVITY_ICONS = { notiz: '📝', anruf: '☎', email: '✉', meeting: '🤝' };
+
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'}) + ' · ' +
+         d.toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'});
+}
+
+function renderActivityListInline(list) {
+  if (!list.length) return `<div class="empty-state">Noch keine Aktivitäten protokolliert.</div>`;
+  return list.map(a => `
+    <div class="task-item" style="align-items:flex-start;">
+      <div style="width:22px; flex-shrink:0;">${ACTIVITY_ICONS[a.typ] || '📝'}</div>
+      <div>
+        <div class="task-text">${escapeHtml(a.text || '')}</div>
+        <div class="task-meta">${ACTIVITY_LABELS[a.typ] || 'Notiz'} · ${fmtDateTime(a.createdAt)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+let activityModalContactId = null;
+
+function openActivityModal(contactId) {
+  activityModalContactId = contactId;
+  document.getElementById('act-typ').value = 'notiz';
+  document.getElementById('act-text').value = '';
+  document.getElementById('activityModalBackdrop').classList.add('active');
+}
+function closeActivityModal() {
+  document.getElementById('activityModalBackdrop').classList.remove('active');
+  activityModalContactId = null;
+}
+async function saveActivity() {
+  const text = document.getElementById('act-text').value.trim();
+  if (!text) { toast('Bitte einen Text eingeben.'); return; }
+  if (!fbDb) { toast('Keine Verbindung zur Datenbank.'); return; }
+  await fbDb.collection('crmActivities').add({
+    contactId: activityModalContactId,
+    typ: document.getElementById('act-typ').value,
+    text,
+    createdAt: new Date().toISOString()
+  });
+  toast('Aktivität gespeichert.');
+  touchContact(activityModalContactId);
+  closeActivityModal();
+  scrollToTop();
+}
+
+function renderEmployeeList(c) {
+  const list = c.mitarbeiter || [];
+  if (!list.length) return `<div class="empty-state">Noch keine Mitarbeiter erfasst.</div>`;
+  return list.map((m, i) => `
+    <div class="task-item">
+      <div style="flex:1;">
+        <div class="task-text">${escapeHtml(m.name || '')}${m.position ? ' — <span style="color:var(--gold-soft);">' + escapeHtml(m.position) + '</span>' : ''}</div>
+        <div class="task-meta">${[m.mobil, m.telefon, m.email].filter(Boolean).map(escapeHtml).join(' · ')}</div>
+      </div>
+      <button class="small" onclick="openEmployeeModal('${c.id}', ${i})">Bearbeiten</button>
+    </div>
+  `).join('');
+}
+
+let employeeModalContactId = null;
+let employeeModalIndex = null;
+
+function openEmployeeModal(contactId, index) {
+  employeeModalContactId = contactId;
+  employeeModalIndex = (index === undefined) ? null : index;
+  const c = contacts.find(x => x.id === contactId);
+  const m = (employeeModalIndex !== null && c?.mitarbeiter) ? c.mitarbeiter[employeeModalIndex] : null;
+  document.getElementById('employeeModalTitle').textContent = m ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter';
+  document.getElementById('emp-name').value = m?.name || '';
+  document.getElementById('emp-position').value = m?.position || '';
+  document.getElementById('emp-email').value = m?.email || '';
+  document.getElementById('emp-telefon').value = m?.telefon || '';
+  document.getElementById('emp-mobil').value = m?.mobil || '';
+  document.getElementById('btnDeleteEmployee').style.display = m ? 'inline-block' : 'none';
+  document.getElementById('employeeModalBackdrop').classList.add('active');
+}
+function closeEmployeeModal() {
+  document.getElementById('employeeModalBackdrop').classList.remove('active');
+  employeeModalContactId = null;
+  employeeModalIndex = null;
+}
+async function saveEmployee() {
+  const name = document.getElementById('emp-name').value.trim();
+  if (!name) { toast('Bitte einen Namen eingeben.'); return; }
+  if (!fbDb || !employeeModalContactId) return;
+  const c = contacts.find(x => x.id === employeeModalContactId);
+  const list = [...(c?.mitarbeiter || [])];
+  const entry = {
+    name,
+    position: document.getElementById('emp-position').value.trim(),
+    email: document.getElementById('emp-email').value.trim(),
+    telefon: document.getElementById('emp-telefon').value.trim(),
+    mobil: document.getElementById('emp-mobil').value.trim(),
+  };
+  if (employeeModalIndex !== null) {
+    list[employeeModalIndex] = entry;
+  } else {
+    list.push(entry);
+  }
+  await fbDb.collection('crmContacts').doc(employeeModalContactId).update({ mitarbeiter: list, lastActivityAt: new Date().toISOString() });
+  toast('Mitarbeiter gespeichert.');
+  closeEmployeeModal();
+  scrollToTop();
+}
+async function deleteEmployee() {
+  if (!fbDb || !employeeModalContactId || employeeModalIndex === null) return;
+  const c = contacts.find(x => x.id === employeeModalContactId);
+  const list = [...(c?.mitarbeiter || [])];
+  list.splice(employeeModalIndex, 1);
+  await fbDb.collection('crmContacts').doc(employeeModalContactId).update({ mitarbeiter: list });
+  closeEmployeeModal();
+}
+
+// ---------- Aufgaben-Tab (global) ----------
+function renderTasks() {
+  const open = tasks.filter(t => !t.erledigt).sort((a,b) => (a.faelligAm||'').localeCompare(b.faelligAm||''));
+  const done = tasks.filter(t => t.erledigt);
+  document.getElementById('countTasks').textContent = open.length;
+  const today = new Date().toISOString().slice(0,10);
+
+  const withContactName = t => {
+    const c = contacts.find(x => x.id === t.contactId);
+    return c ? c.name : '';
+  };
+
+  document.getElementById('taskListOpen').innerHTML = open.length ? open.map(t => `
+    <div class="task-item">
+      <input type="checkbox" onchange="toggleTask('${t.id}', this.checked)">
+      <div>
+        <div class="task-text">${escapeHtml(t.text||'')} ${withContactName(t) ? `— <span style="color:var(--gold-soft)">${escapeHtml(withContactName(t))}</span>` : ''}</div>
+        ${t.faelligAm ? `<div class="task-meta ${t.faelligAm < today ? 'overdue' : ''}">Fällig: ${fmtDate(t.faelligAm)}</div>` : ''}
+      </div>
+    </div>
+  `).join('') : `<div class="empty-state">Keine offenen Wiedervorlagen. 👍</div>`;
+
+  document.getElementById('taskListDone').innerHTML = done.length ? done.map(t => `
+    <div class="task-item done">
+      <input type="checkbox" checked onchange="toggleTask('${t.id}', this.checked)">
+      <div class="task-text">${escapeHtml(t.text||'')} ${withContactName(t) ? `— ${escapeHtml(withContactName(t))}` : ''}</div>
+    </div>
+  `).join('') : `<div class="empty-state">Noch nichts erledigt.</div>`;
+}
+
+async function toggleTask(id, done) {
+  if (!fbDb) return;
+  await fbDb.collection('crmTasks').doc(id).update({ erledigt: done });
+}
+
+// ---------- Kontakt-Modal ----------
+function autofillFromPaste() {
+  const text = document.getElementById('f-pastebox').value;
+  if (!text.trim()) { toast('Zuerst Text einfügen.'); return; }
+  let found = [];
+
+  const emailMatch = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+  if (emailMatch) {
+    document.getElementById('f-email').value = emailMatch[0];
+    found.push('E-Mail');
+  }
+
+  // Schweizer Telefonnummern: 044 123 45 67 / 079 123 45 67 / +41 44 123 45 67 / 0041...
+  // Mobil-Vorwahlen in der Schweiz: 076-079. Alle anderen gelten als Festnetz.
+  const phoneMatches = text.match(/(\+41|0041|0)\s?\d{2}[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}/g) || [];
+  let mobilSet = false, telefonSet = false;
+  for (const m of phoneMatches) {
+    const digits = m.replace(/\D/g, '').replace(/^0041/, '41').replace(/^0/, '41');
+    const isMobil = /^41(76|77|78|79)/.test(digits) || /^(076|077|078|079)/.test(m.replace(/\D/g, ''));
+    if (isMobil && !mobilSet) {
+      document.getElementById('f-mobil').value = m.trim();
+      mobilSet = true;
+      found.push('Mobil');
+    } else if (!isMobil && !telefonSet) {
+      document.getElementById('f-telefon').value = m.trim();
+      telefonSet = true;
+      found.push('Festnetz');
+    }
+  }
+
+  // PLZ (4-stellig, CH) + Ort: z.B. "8001 Zürich"
+  const plzMatch = text.match(/\b(\d{4})\s+([A-ZÀ-Ý][A-Za-zÀ-ÿ.\-\s]{1,30})/);
+  if (plzMatch) {
+    document.getElementById('f-plz').value = plzMatch[1];
+    document.getElementById('f-ort').value = plzMatch[2].trim().split('\n')[0];
+    found.push('PLZ/Ort');
+  }
+
+  // Adresse: Strassenname + Hausnummer, z.B. "Bahnhofstrasse 12" oder "Rue du Lac 3a"
+  const addrMatch = text.match(/[A-ZÀ-Ý][A-Za-zÀ-ÿ.\-]+(?:strasse|str\.|weg|gasse|platz|allee|quai|rue|via)\s?\d{1,4}[a-zA-Z]?/i);
+  if (addrMatch) {
+    document.getElementById('f-adresse').value = addrMatch[0];
+    found.push('Adresse');
+  }
+
+  // Website: erste Domain, die nicht tel.search.ch/google selbst ist
+  const urlMatch = text.match(/\b((?!tel\.search\.ch|google\.)[a-z0-9-]+\.(ch|com|net|org))\b/i);
+  if (urlMatch && !document.getElementById('f-website').value) {
+    document.getElementById('f-website').value = urlMatch[0];
+    found.push('Website');
+  }
+
+  toast(found.length ? `Erkannt: ${found.join(', ')}` : 'Nichts Eindeutiges erkannt – bitte manuell ergänzen.');
+}
+
+function updateModalSearchLinks() {
+  const name = document.getElementById('f-name').value.trim();
+  const firma = document.getElementById('f-firma').value.trim();
+  const query = encodeURIComponent(firma || name || '');
+  document.getElementById('linkTelSearch').href = query ? `https://tel.search.ch/?was=${query}` : '#';
+  document.getElementById('linkGoogle').href = query ? `https://www.google.com/search?q=${query}` : '#';
+}
+
+function openContactModal(id) {
+  editingContactId = id || null;
+  const c = id ? contacts.find(x => x.id === id) : null;
+  document.getElementById('contactModalTitle').textContent = c ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
+  document.getElementById('f-name').value = c?.name || '';
+  document.getElementById('f-firma').value = c?.firma || '';
+  document.getElementById('f-email').value = c?.email || '';
+  document.getElementById('f-telefon').value = c?.telefon || '';
+  document.getElementById('f-mobil').value = c?.mobil || '';
+  document.getElementById('f-website').value = c?.website || '';
+  document.getElementById('f-adresse').value = c?.adresse || '';
+  document.getElementById('f-plz').value = c?.plz || '';
+  document.getElementById('f-ort').value = c?.ort || '';
+  document.getElementById('f-notiz').value = c?.notiz || '';
+  document.getElementById('f-pastebox').value = '';
+  document.getElementById('btnDeleteContact').style.display = c ? 'inline-block' : 'none';
+  updateModalSearchLinks();
+  document.getElementById('contactModalBackdrop').classList.add('active');
+}
+function closeContactModal() {
+  document.getElementById('contactModalBackdrop').classList.remove('active');
+  editingContactId = null;
+}
+async function saveContact() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { toast('Bitte einen Namen eingeben.'); return; }
+  const data = {
+    name,
+    firma: document.getElementById('f-firma').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    telefon: document.getElementById('f-telefon').value.trim(),
+    mobil: document.getElementById('f-mobil').value.trim(),
+    website: document.getElementById('f-website').value.trim(),
+    adresse: document.getElementById('f-adresse').value.trim(),
+    plz: document.getElementById('f-plz').value.trim(),
+    ort: document.getElementById('f-ort').value.trim(),
+    notiz: document.getElementById('f-notiz').value.trim(),
+    updatedAt: new Date().toISOString(),
+    lastActivityAt: new Date().toISOString()
+  };
+  if (!fbDb) { toast('Keine Verbindung zur Datenbank.'); return; }
+  if (editingContactId) {
+    await fbDb.collection('crmContacts').doc(editingContactId).update(data);
+    toast('Kontakt aktualisiert.');
+  } else {
+    data.createdAt = data.updatedAt;
+    const ref = await fbDb.collection('crmContacts').add(data);
+    selectedContactId = ref.id;
+    toast('Kontakt angelegt.');
+  }
+  closeContactModal();
+  scrollToTop();
+}
+async function deleteContact() {
+  if (!editingContactId || !fbDb) return;
+  if (!confirm('Diesen Kontakt wirklich löschen?')) return;
+  await fbDb.collection('crmContacts').doc(editingContactId).delete();
+  if (selectedContactId === editingContactId) selectedContactId = null;
+  closeContactModal();
+  renderContactDetail(null);
+  scrollToTop();
+}
+
+// Löschen direkt aus der Detailansicht (ohne erst "Bearbeiten" öffnen zu müssen)
+async function deleteContactFromDetail(contactId) {
+  if (!fbDb) return;
+  const c = contacts.find(x => x.id === contactId);
+  if (!confirm(`"${c ? c.name : 'Diesen Kontakt'}" wirklich löschen?`)) return;
+  await fbDb.collection('crmContacts').doc(contactId).delete();
+  if (selectedContactId === contactId) selectedContactId = null;
+  renderContactDetail(null);
+  scrollToTop();
+}
+
+// ---------- Aufgaben-Modal ----------
+function openTaskModal(contactId) {
+  taskModalContactId = contactId;
+  document.getElementById('t-text').value = '';
+  document.getElementById('t-datum').value = '';
+  document.getElementById('taskModalBackdrop').classList.add('active');
+}
+function closeTaskModal() {
+  document.getElementById('taskModalBackdrop').classList.remove('active');
+  taskModalContactId = null;
+}
+async function saveTask() {
+  const text = document.getElementById('t-text').value.trim();
+  if (!text) { toast('Bitte eine Aufgabe eingeben.'); return; }
+  if (!fbDb) { toast('Keine Verbindung zur Datenbank.'); return; }
+  await fbDb.collection('crmTasks').add({
+    contactId: taskModalContactId,
+    text,
+    faelligAm: document.getElementById('t-datum').value || null,
+    erledigt: false,
+    createdAt: new Date().toISOString()
+  });
+  toast('Wiedervorlage gespeichert.');
+  touchContact(taskModalContactId);
+  closeTaskModal();
+  scrollToTop();
+}
+
+// ---------- Kontakte exportieren ----------
+function csvField(v) {
+  return (v || '').toString().replace(/\n/g, ' ').trim();
+}
+
+function exportContacts() {
+  if (!contacts.length) { toast('Keine Kontakte zum Exportieren.'); return; }
+  const header = 'Name,Firma,E-Mail,Festnetz,Mobil,Adresse,PLZ,Ort,Website';
+  const rows = contacts.map(c => [c.name, c.firma, c.email, c.telefon, c.mobil, c.adresse, c.plz, c.ort, c.website].map(csvField).join(', '));
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kontakte-export-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`${contacts.length} Kontakte exportiert.`);
+}
+
+function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    // Erste Zeile (Kopfzeile "Name,Firma,...") überspringen, falls vorhanden
+    const lines = reader.result.split('\n');
+    if (lines[0] && lines[0].toLowerCase().startsWith('name,firma')) lines.shift();
+    document.getElementById('importText').value = lines.join('\n').trim();
+  };
+  reader.readAsText(file, 'utf-8');
+  event.target.value = '';
+}
+
+// ---------- Bulk-Import (mit Duplikat-Erkennung über E-Mail) ----------
+async function importContacts() {
+  const raw = document.getElementById('importText').value;
+  const resultEl = document.getElementById('importResult');
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) { toast('Nichts zum Importieren gefunden.'); return; }
+  if (!fbDb) { toast('Keine Verbindung zur Datenbank.'); return; }
+
+  // Bestehende Kontakte nach E-Mail nachschlagen, um Duplikate zu vermeiden
+  const byEmail = {};
+  for (const c of contacts) {
+    if (c.email) byEmail[c.email.toLowerCase()] = c.id;
+  }
+
+  const batch = fbDb.batch();
+  let created = 0, updated = 0;
+  for (const line of lines) {
+    const cols = line.split(',').map(s => s.trim());
+    const [name, firma, email, telefon, mobil, adresse, plz, ort, website] = cols;
+    if (!name) continue;
+    const data = {
+      name, firma: firma || '', email: email || '', telefon: telefon || '', mobil: mobil || '',
+      adresse: adresse || '', plz: plz || '', ort: ort || '', website: website || '',
+      updatedAt: new Date().toISOString()
+    };
+    const existingId = email ? byEmail[email.toLowerCase()] : null;
+    if (existingId) {
+      batch.set(fbDb.collection('crmContacts').doc(existingId), data, { merge: true });
+      updated++;
+    } else {
+      const ref = fbDb.collection('crmContacts').doc();
+      data.notiz = '';
+      data.createdAt = data.updatedAt;
+      batch.set(ref, data);
+      created++;
+      if (email) byEmail[email.toLowerCase()] = ref.id; // verhindert Duplikate INNERHALB derselben Import-Liste
+    }
+  }
+  if (!created && !updated) { toast('Keine gültigen Zeilen erkannt.'); return; }
+  await batch.commit();
+  resultEl.textContent = `${created} neu angelegt, ${updated} aktualisiert.`;
+  document.getElementById('importText').value = '';
+}
+
+// ---------- Kalender-Tab ----------
+let calendarMonthOffset = 0; // 0 = aktueller Monat, -1 = letzter Monat, +1 = nächster, ...
+
+function shiftCalendarMonth(delta) {
+  calendarMonthOffset += delta;
+  renderCalendar();
+}
+
+function getCalendarMonthDate() {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + calendarMonthOffset);
+  return d;
+}
+
+function renderCalendar() {
+  const list = document.getElementById('calendarList');
+  if (!list) return;
+
+  const monthDate = getCalendarMonthDate();
+  const monthKey = monthDate.toISOString().slice(0, 7); // "YYYY-MM"
+  const labelEl = document.getElementById('calendarMonthLabel');
+  if (labelEl) labelEl.textContent = monthDate.toLocaleDateString('de-CH', { month: 'long', year: 'numeric' });
+
+  if (!events.length) {
+    list.innerHTML = `<div class="empty-state">Noch keine Termine synchronisiert.<div class="hint">Sobald der Kalender-Sync eingerichtet und einmal gelaufen ist, erscheinen hier deine Termine automatisch.</div></div>`;
+    return;
+  }
+  const sorted = [...events]
+    .filter(e => e.start && e.start.slice(0, 7) === monthKey)
+    .sort((a, b) => a.start.localeCompare(b.start));
+
+  if (!sorted.length) {
+    list.innerHTML = `<div class="empty-state">Keine Termine in diesem Monat.</div>`;
+    return;
+  }
+
+  const groups = {};
+  for (const e of sorted) {
+    const day = e.start.slice(0, 10);
+    (groups[day] = groups[day] || []).push(e);
+  }
+  list.innerHTML = Object.keys(groups).sort().map(day => `
+    <div style="margin-bottom:16px;">
+      <div style="color:var(--gold-soft); font-size:12.5px; margin-bottom:6px;">${fmtDate(day)}</div>
+      ${groups[day].map(e => {
+        const c = e.contactId ? contacts.find(x => x.id === e.contactId) : null;
+        return `
+        <div class="task-item">
+          <div style="flex:1;">
+            <div class="task-text">${escapeHtml(e.titel || '')}</div>
+            <div class="task-meta">
+              ${new Date(e.start).toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'})}
+              ${e.ort ? ' · ' + escapeHtml(e.ort) : ''}
+              ${e.quelle ? ' · ' + escapeHtml(e.quelle) : ''}
+            </div>
+          </div>
+          <div style="font-size:12px;">
+            ${c
+              ? `<span style="color:var(--gold-soft);">${escapeHtml(c.name)}</span> <a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim); margin-left:6px;">ändern</a>`
+              : `<a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">+ Kontakt zuordnen</a>`}
+          </div>
+        </div>
+      `}).join('')}
+    </div>
+  `).join('');
+}
+
+// ---------- Termin-Kontakt-Zuordnung ----------
+let eventAssignId = null;
+
+function openEventAssignModal(eventId) {
+  eventAssignId = eventId;
+  phoneContactAssignId = null;
+  companyLinkContactId = null;
+  document.getElementById('eventAssignTitle').textContent = 'Kontakt zuordnen';
+  document.getElementById('eventAssignSearch').value = '';
+  renderEventAssignResults();
+  document.getElementById('eventAssignModalBackdrop').classList.add('active');
+}
+
+function renderEventAssignResults() {
+  const q = document.getElementById('eventAssignSearch').value.trim().toLowerCase();
+  const resultsEl = document.getElementById('eventAssignResults');
+  if (!q) { resultsEl.innerHTML = `<div class="empty-state" style="padding:12px;">Namen eintippen zum Suchen…</div>`; return; }
+  const matches = contacts.filter(c =>
+    (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q)
+  ).slice(0, 8);
+  if (!matches.length) { resultsEl.innerHTML = `<div class="empty-state" style="padding:12px;">Keine Treffer.</div>`; return; }
+  resultsEl.innerHTML = matches.map(c => `
+    <div class="row-with-avatar" style="padding:8px 4px; cursor:pointer; border-bottom:1px solid var(--anthracite-700);" onclick="handleAssignSelection('${c.id}')">
+      ${avatarHtml(c, 'small')}
+      <div>
+        <div style="font-size:13.5px;">${escapeHtml(c.name || '')}</div>
+        ${c.firma ? `<div style="font-size:11.5px; color:var(--cream-dim);">${escapeHtml(c.firma)}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+let companyLinkContactId = null;
+
+function openCompanyLinkModal(contactId) {
+  companyLinkContactId = contactId;
+  eventAssignId = null;
+  phoneContactAssignId = null;
+  document.getElementById('eventAssignTitle').textContent = 'Firma verknüpfen';
+  document.getElementById('eventAssignSearch').value = '';
+  renderEventAssignResults();
+  document.getElementById('eventAssignModalBackdrop').classList.add('active');
+}
+
+async function assignContactToCompany(companyContactId) {
+  if (!companyLinkContactId || !fbDb || companyLinkContactId === companyContactId) return;
+  await fbDb.collection('crmContacts').doc(companyLinkContactId).update({ firmaKontaktId: companyContactId });
+  document.getElementById('eventAssignModalBackdrop').classList.remove('active');
+  toast('Verknüpft.');
+  touchContact(companyLinkContactId);
+  companyLinkContactId = null;
+  scrollToTop();
+}
+
+function handleAssignSelection(contactId) {
+  if (companyLinkContactId) {
+    assignContactToCompany(contactId);
+  } else if (phoneContactAssignId) {
+    assignPhoneContactToContact(contactId);
+  } else {
+    assignEventToContact(contactId);
+  }
+}
+
+async function assignEventToContact(contactId) {
+  if (!eventAssignId || !fbDb) return;
+  await fbDb.collection('crmEvents').doc(eventAssignId).update({ contactId });
+  document.getElementById('eventAssignModalBackdrop').classList.remove('active');
+  toast('Termin zugeordnet.');
+  touchContact(contactId);
+  scrollToTop();
+}
+
+// ---------- iPhone-Kontakte-Tab ----------
+function renderPhoneContacts() {
+  const list = document.getElementById('phoneContactList');
+  const unlinked = phoneContacts.filter(p => !p.contactId);
+  document.getElementById('countPhoneContacts').textContent = unlinked.length;
+  if (!phoneContacts.length) {
+    list.innerHTML = `<div class="empty-state">Noch keine iPhone-Kontakte synchronisiert.<div class="hint">Erscheint hier automatisch, sobald der iPhone-Kontakte-Sync eingerichtet ist und einmal gelaufen ist.</div></div>`;
+    return;
+  }
+  const q = (document.getElementById('phoneContactSearch')?.value || '').trim().toLowerCase();
+  const filtered = q
+    ? unlinked.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.firma || '').toLowerCase().includes(q) ||
+        (p.telefon || '').toLowerCase().includes(q) ||
+        (p.mobil || '').toLowerCase().includes(q) ||
+        (p.email || '').toLowerCase().includes(q) ||
+        (p.ort || '').toLowerCase().includes(q)
+      )
+    : unlinked;
+  if (!unlinked.length) {
+    list.innerHTML = `<div class="empty-state">Alle iPhone-Kontakte sind bereits automatisch zugeordnet. 👍</div>`;
+    return;
+  }
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">Keine Treffer für "${escapeHtml(q)}".</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(p => `
+    <div class="task-item">
+      <div style="flex:1;">
+        <div class="task-text">${escapeHtml(p.name || '')}${p.firma ? ' — <span style="color:var(--gold-soft);">' + escapeHtml(p.firma) + '</span>' : ''}</div>
+        <div class="task-meta">${[p.mobil, p.telefon, p.email, [p.adresse, [p.plz, p.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).map(escapeHtml).join(' · ')}</div>
+      </div>
+      <a href="#" onclick="openPhoneContactAssignModal('${p.id}'); return false;" style="color:var(--cream-dim); font-size:12px;">Kontakt zuordnen</a>
+    </div>
+  `).join('');
+}
+
+let phoneContactAssignId = null;
+
+function openPhoneContactAssignModal(phoneContactId) {
+  phoneContactAssignId = phoneContactId;
+  eventAssignId = null;
+  companyLinkContactId = null;
+  document.getElementById('eventAssignTitle').textContent = 'Kontakt zuordnen';
+  document.getElementById('eventAssignSearch').value = '';
+  renderEventAssignResults();
+  document.getElementById('eventAssignModalBackdrop').classList.add('active');
+}
+
+async function assignPhoneContactToContact(contactId) {
+  if (!phoneContactAssignId || !fbDb) return;
+  await fbDb.collection('crmPhoneContacts').doc(phoneContactAssignId).update({ contactId });
+  // Fehlende Angaben (Telefon/E-Mail) beim Hauptkontakt ergänzen, ohne Bestehendes zu überschreiben
+  const phoneContact = phoneContacts.find(p => p.id === phoneContactAssignId);
+  const mainContact = contacts.find(c => c.id === contactId);
+  if (phoneContact && mainContact) {
+    const fill = {};
+    if (!mainContact.telefon && phoneContact.telefon) fill.telefon = phoneContact.telefon;
+    if (!mainContact.mobil && phoneContact.mobil) fill.mobil = phoneContact.mobil;
+    if (!mainContact.email && phoneContact.email) fill.email = phoneContact.email;
+    if (!mainContact.adresse && phoneContact.adresse) fill.adresse = phoneContact.adresse;
+    if (!mainContact.plz && phoneContact.plz) fill.plz = phoneContact.plz;
+    if (!mainContact.ort && phoneContact.ort) fill.ort = phoneContact.ort;
+    fill.lastActivityAt = new Date().toISOString();
+    await fbDb.collection('crmContacts').doc(contactId).update(fill);
+  }
+  document.getElementById('eventAssignModalBackdrop').classList.remove('active');
+  phoneContactAssignId = null;
+  toast('Verknüpft.');
+  scrollToTop();
+}
+
+// ---------- Pipeline (Kanban) ----------
+const PIPELINE_STAGES = [
+  { id: 'neu', label: 'Neu', color: 'var(--cream-dim)' },
+  { id: 'kontakt', label: 'Prospect', color: 'var(--amber)' },
+  { id: 'aktiv', label: 'Kunde aktiv', color: 'var(--green)' },
+  { id: 'nachfassen', label: 'Kunde nachfassen', color: 'var(--red)' },
+  { id: 'schlafend', label: 'Schlafender Kunde', color: '#5b7a99' },
+  { id: 'produzent', label: 'Produzent / Dienstleister', color: '#8a63c9' },
+];
+
+function getStageColor(statusId) {
+  const stage = PIPELINE_STAGES.find(s => s.id === (statusId || 'neu'));
+  return stage ? stage.color : 'var(--cream-dim)';
+}
+
+function renderPipeline() {
+  const board = document.getElementById('pipelineBoard');
+  if (!board) return;
+  const q = (document.getElementById('pipelineSearch')?.value || '').trim().toLowerCase();
+  const filtered = q
+    ? contacts.filter(c => (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q))
+    : contacts;
+
+  board.innerHTML = PIPELINE_STAGES.map(stage => {
+    const inStage = filtered.filter(c => (c.status || 'neu') === stage.id);
+    return `
+      <div class="pipeline-col">
+        <div class="pipeline-col-head" style="background:${stage.color};">
+          ${stage.label} <span class="count">${inStage.length}</span>
+        </div>
+        <div class="pipeline-col-body" data-stage="${stage.id}"
+             ondragover="event.preventDefault(); this.classList.add('drag-over');"
+             ondragleave="this.classList.remove('drag-over');"
+             ondrop="handlePipelineDrop(event, '${stage.id}')">
+          ${inStage.length ? inStage.map(c => `
+            <div class="pipeline-card" style="border-left:3px solid ${stage.color}; background:color-mix(in srgb, ${stage.color} 38%, var(--anthracite-800));" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${c.id}')" onclick="switchToTab('contacts'); selectContact('${c.id}');">
+              <div class="name">${escapeHtml(c.name || '')}</div>
+              ${c.firma ? `<div class="firma">${escapeHtml(c.firma)}</div>` : ''}
+            </div>
+          `).join('') : `<div class="empty-state" style="font-size:12px; padding:14px 6px;">Keine Kontakte</div>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function changeContactStatus(contactId, stageId) {
+  if (!contactId || !fbDb) return;
+  const c = contacts.find(x => x.id === contactId);
+  const oldStageId = c?.status || 'neu';
+  if (oldStageId === stageId) return;
+
+  const oldLabel = (PIPELINE_STAGES.find(s => s.id === oldStageId) || {}).label || oldStageId;
+  const newLabel = (PIPELINE_STAGES.find(s => s.id === stageId) || {}).label || stageId;
+
+  const update = { status: stageId, lastActivityAt: new Date().toISOString() };
+  if (stageId === 'aktiv' && !c?.kundeSeit) {
+    update.kundeSeit = new Date().toISOString();
+  }
+  await fbDb.collection('crmContacts').doc(contactId).update(update);
+
+  await fbDb.collection('crmActivities').add({
+    contactId,
+    typ: 'notiz',
+    text: `Status geändert: ${oldLabel} → ${newLabel}`,
+    createdAt: new Date().toISOString()
+  });
+}
+
+async function handlePipelineDrop(event, stageId) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-over');
+  const contactId = event.dataTransfer.getData('text/plain');
+  await changeContactStatus(contactId, stageId);
+}
+
+function switchToTab(viewName) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelector(`.tab[data-view="${viewName}"]`).classList.add('active');
+  document.getElementById('view-' + viewName).classList.add('active');
+}
+
+// ---------- Tabs & Events ----------
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-' + tab.dataset.view).classList.add('active');
+  });
+});
+
+document.getElementById('contactSearch').addEventListener('input', renderContacts);
+document.getElementById('btnNewContact').addEventListener('click', () => openContactModal(null));
+document.getElementById('btnCancelContact').addEventListener('click', closeContactModal);
+document.getElementById('btnSaveContact').addEventListener('click', saveContact);
+document.getElementById('btnDeleteContact').addEventListener('click', deleteContact);
+document.getElementById('btnCancelTask').addEventListener('click', closeTaskModal);
+document.getElementById('btnSaveTask').addEventListener('click', saveTask);
+document.getElementById('btnImportContacts').addEventListener('click', importContacts);
+document.getElementById('btnCancelEventAssign').addEventListener('click', () => {
+  document.getElementById('eventAssignModalBackdrop').classList.remove('active');
+});
+document.getElementById('btnCancelActivity').addEventListener('click', closeActivityModal);
+document.getElementById('btnSaveActivity').addEventListener('click', saveActivity);
+document.getElementById('btnCancelEmployee').addEventListener('click', closeEmployeeModal);
+document.getElementById('btnSaveEmployee').addEventListener('click', saveEmployee);
+document.getElementById('btnDeleteEmployee').addEventListener('click', deleteEmployee);
+</script>
+</body>
+</html>
