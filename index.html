@@ -167,7 +167,7 @@
 
   .empty-state { color: var(--cream-dim); font-size: 13px; padding: 22px 10px; text-align: center; border: 1px dashed var(--anthracite-line); border-radius: 6px; }
 
-  .pipeline-col { flex: 0 0 240px; }
+  .pipeline-col { flex: 0 0 260px; }
   .pipeline-col-head {
     display: inline-block; margin-bottom: 10px; font-size: 12.5px; font-weight: 700;
     padding: 5px 12px; border-radius: var(--radius); color: #fff;
@@ -176,12 +176,31 @@
   .pipeline-col-body { min-height: 60px; max-height: 65vh; overflow-y: auto; border-radius: 8px; padding: 4px; transition: background 0.15s; }
   .pipeline-col-body.drag-over { background: var(--anthracite-700); }
   .pipeline-card {
-    background: var(--anthracite-800); border: 1px solid var(--anthracite-line); border-radius: 8px;
-    box-shadow: var(--shadow); padding: 10px 12px; margin-bottom: 8px; cursor: grab;
+    --stage: var(--cream-dim);
+    background: var(--anthracite-800); border: 1px solid var(--anthracite-line); border-left: 3px solid var(--stage);
+    border-radius: 10px; box-shadow: var(--shadow); padding: 10px 10px 10px 11px; margin-bottom: 8px; cursor: grab;
+    display: flex; gap: 10px; align-items: center;
+    transition: transform .15s ease, box-shadow .15s ease;
   }
+  .pipeline-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(38,35,25,0.10); }
   .pipeline-card:active { cursor: grabbing; }
-  .pipeline-card .name { font-size: 13px; font-weight: 600; color: var(--cream); margin-bottom: 2px; }
-  .pipeline-card .firma { font-size: 11.5px; color: var(--gold-soft); }
+  .pipeline-card img { pointer-events: none; }
+  .pipeline-card .info { min-width: 0; flex: 1; }
+  .pipeline-card .name { font-size: 13px; font-weight: 600; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+  .pipeline-card .firma { font-size: 11.5px; color: var(--gold-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pipeline-card .card-sub { font-size: 11px; color: var(--cream-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .pipeline-card .fu-badge {
+    display: inline-block; margin-top: 4px; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px;
+    color: var(--red); background: color-mix(in srgb, var(--red) 12%, var(--anthracite-800));
+  }
+  .avatar.pipe {
+    width: 36px; height: 36px; border-radius: 10px; font-size: 12.5px; font-weight: 600; font-family: inherit;
+    background: color-mix(in srgb, var(--stage, var(--gold)) 15%, var(--anthracite-800));
+    color: color-mix(in srgb, var(--stage, var(--gold)) 80%, #000);
+    border: 1px solid color-mix(in srgb, var(--stage, var(--gold)) 25%, var(--anthracite-line));
+  }
+  .avatar.pipe.has-logo { background: #fff; border-color: var(--anthracite-line); }
+  .avatar.pipe img { padding: 4px; box-sizing: border-box; }
 
   .contact-card-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -764,6 +783,7 @@ async function fbLoadAll() {
     tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTasks();
     renderFollowups();
+    renderPipeline();
     if (selectedContactId) renderContactDetail(selectedContactId);
   });
   // Offers/invoices/events: Collections existieren erst nach dem ersten Sync-Lauf.
@@ -2490,6 +2510,8 @@ function renderPipeline() {
   const filtered = q
     ? contacts.filter(c => (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q))
     : contacts;
+  // Kontakte mit offenem Follow-up (von followup_check.py), inkl. Firma bei Mitarbeiter-Kontakten
+  const openFollowups = new Set(tasks.filter(t => t.followupEventId && !t.erledigt).map(t => t.contactId));
 
   board.innerHTML = PIPELINE_STAGES.map(stage => {
     const inStage = filtered.filter(c => (c.status || 'neu') === stage.id);
@@ -2504,9 +2526,14 @@ function renderPipeline() {
              ondragleave="this.classList.remove('drag-over');"
              ondrop="handlePipelineDrop(event, '${stage.id}')">
           ${inStage.length ? inStage.map(c => `
-            <div class="pipeline-card" style="border-left:3px solid ${stage.color}; background:color-mix(in srgb, ${stage.color} 38%, var(--anthracite-800));" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${c.id}')" onclick="switchToTab('contacts'); selectContact('${c.id}');">
-              <div class="name">${escapeHtml(c.name || '')}</div>
-              ${c.firma ? `<div class="firma">${escapeHtml(c.firma)}</div>` : ''}
+            <div class="pipeline-card" style="--stage:${stage.color};" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${c.id}')" onclick="switchToTab('contacts'); selectContact('${c.id}');">
+              ${avatarHtml(c, 'pipe')}
+              <div class="info">
+                <div class="name">${escapeHtml(c.name || c.firma || '')}</div>
+                ${c.firma && c.firma.trim().toLowerCase() !== (c.name || '').trim().toLowerCase() ? `<div class="firma">${escapeHtml(c.firma)}</div>` : ''}
+                ${[c.ort, relativeDays(c.lastActivityAt)].filter(Boolean).length ? `<div class="card-sub">${escapeHtml([c.ort, relativeDays(c.lastActivityAt)].filter(Boolean).join(' · '))}</div>` : ''}
+                ${openFollowups.has(c.id) ? `<span class="fu-badge" title="Offenes Follow-up – siehe Tab Follow-ups">⏰ Follow-up offen</span>` : ''}
+              </div>
             </div>
           `).join('') : `<div class="empty-state" style="font-size:12px; padding:14px 6px;">Keine Kontakte</div>`}
         </div>
