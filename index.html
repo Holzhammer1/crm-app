@@ -458,6 +458,8 @@
     <div class="form-grid">
       <div class="full"><label>Name *</label><input type="text" id="f-name" placeholder="Vorname Nachname" oninput="updateModalSearchLinks()"></div>
       <div class="full"><label>Firma</label><input type="text" id="f-firma" oninput="updateModalSearchLinks()"></div>
+      <div class="full"><label>Gehört zu Firma (verknüpfen)</label><select id="f-firmaKontakt"></select>
+        <div style="font-size:11.5px; color:var(--cream-dim); margin-top:4px;">Verknüpft diesen Kontakt als Mitarbeiter mit dem Firmen-Kontakt – E-Mails und Termine laufen dann auch bei der Firma auf.</div></div>
       <div class="full quick-links" id="modalSearchLinks">
         <a href="#" id="linkTelSearch" target="_blank" rel="noopener">🔍 tel.search.ch ↗</a>
         <a href="#" id="linkGoogle" target="_blank" rel="noopener">🔍 Google ↗</a>
@@ -586,6 +588,7 @@
     </div>
     <div class="form-actions">
       <button class="ghost" id="btnDeleteEmployee" style="display:none;">Entfernen</button>
+      <button id="btnConvertEmployee" style="display:none;" onclick="convertEmployeeToContact()" title="Wird ein eigener Kontakt, der mit dieser Firma verknüpft ist">Als eigenen Kontakt anlegen</button>
       <button id="btnCancelEmployee">Abbrechen</button>
       <button class="primary" id="btnSaveEmployee">Speichern</button>
     </div>
@@ -1084,6 +1087,7 @@ function renderContactDetailInner(id) {
   if (c.email) allContactEmailAddrs.add(c.email.toLowerCase().trim());
   (c.weitereEmails || []).forEach(e => e && allContactEmailAddrs.add(e.toLowerCase().trim()));
   linkedEmployees.forEach(emp => { if (emp.email) allContactEmailAddrs.add(emp.email.toLowerCase().trim()); });
+  (c.mitarbeiter || []).forEach(m => { if (m.email) allContactEmailAddrs.add(m.email.toLowerCase().trim()); });
 
   const contactEmails = allContactEmailAddrs.size
     ? emails.filter(e => (e.participants || []).some(p => allContactEmailAddrs.has(p)))
@@ -1505,6 +1509,7 @@ function openEmployeeModal(contactId, index) {
   document.getElementById('emp-telefon').value = m?.telefon || '';
   document.getElementById('emp-mobil').value = m?.mobil || '';
   document.getElementById('btnDeleteEmployee').style.display = m ? 'inline-block' : 'none';
+  document.getElementById('btnConvertEmployee').style.display = m ? 'inline-block' : 'none';
   document.getElementById('employeeModalBackdrop').classList.add('active');
 }
 function closeEmployeeModal() {
@@ -1534,6 +1539,37 @@ async function saveEmployee() {
   toast('Mitarbeiter gespeichert.');
   closeEmployeeModal();
 }
+// Eingebetteten Mitarbeiter in einen eigenen, mit der Firma verknuepften Kontakt umwandeln
+async function convertEmployeeToContact() {
+  if (!fbDb || !employeeModalContactId || employeeModalIndex === null) return;
+  const company = contacts.find(x => x.id === employeeModalContactId);
+  const list = [...(company?.mitarbeiter || [])];
+  const m = list[employeeModalIndex];
+  if (!company || !m) return;
+  const name = document.getElementById('emp-name').value.trim() || m.name;
+  if (!confirm(`${name} als eigenen Kontakt anlegen und mit ${company.firma || company.name} verknüpfen?`)) return;
+  const position = document.getElementById('emp-position').value.trim();
+  const now = new Date().toISOString();
+  const ref = await fbDb.collection('crmContacts').add({
+    name,
+    firma: (company.firma || company.name || '').trim(),
+    email: document.getElementById('emp-email').value.trim(),
+    telefon: document.getElementById('emp-telefon').value.trim(),
+    mobil: document.getElementById('emp-mobil').value.trim(),
+    position,
+    notiz: position ? `Position: ${position}` : '',
+    firmaKontaktId: company.id,
+    status: company.status || 'neu',
+    ort: company.ort || '',
+    createdAt: now, updatedAt: now, lastActivityAt: now,
+    createdBy: currentUserName || null,
+  });
+  list.splice(employeeModalIndex, 1);
+  await fbDb.collection('crmContacts').doc(company.id).update({ mitarbeiter: list });
+  closeEmployeeModal();
+  toast(`${name} ist jetzt ein eigener Kontakt.`);
+}
+
 async function deleteEmployee() {
   if (!fbDb || !employeeModalContactId || employeeModalIndex === null) return;
   const c = contacts.find(x => x.id === employeeModalContactId);
@@ -1713,12 +1749,26 @@ function updateModalSearchLinks() {
   document.getElementById('linkGoogle').href = query ? `https://www.google.com/search?q=${query}` : '#';
 }
 
+// Auswahlliste "Gehört zu Firma": alle Kontakte, die nicht selbst Mitarbeiter einer Firma sind
+function fillCompanySelect(c) {
+  const sel = document.getElementById('f-firmaKontakt');
+  if (!sel) return;
+  const label = x => (x.firma || x.name || '').trim();
+  const options = contacts
+    .filter(x => x.id !== c?.id && !x.firmaKontaktId && label(x))
+    .sort((a, b) => label(a).localeCompare(label(b), 'de', { sensitivity: 'base' }));
+  sel.innerHTML = `<option value="">– keine Verknüpfung –</option>` + options.map(x =>
+    `<option value="${x.id}" ${c?.firmaKontaktId === x.id ? 'selected' : ''}>${escapeHtml(label(x))}${x.firma && x.name && x.firma !== x.name ? ' (' + escapeHtml(x.name) + ')' : ''}${x.ort ? ' – ' + escapeHtml(x.ort) : ''}</option>`
+  ).join('');
+}
+
 function openContactModal(id) {
   editingContactId = id || null;
   const c = id ? contacts.find(x => x.id === id) : null;
   document.getElementById('contactModalTitle').textContent = c ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
   document.getElementById('f-name').value = c?.name || '';
   document.getElementById('f-firma').value = c?.firma || '';
+  fillCompanySelect(c);
   document.getElementById('f-email').value = c?.email || '';
   document.getElementById('f-telefon').value = c?.telefon || '';
   document.getElementById('f-mobil').value = c?.mobil || '';
@@ -1736,6 +1786,18 @@ function closeContactModal() {
   document.getElementById('contactModalBackdrop').classList.remove('active');
   editingContactId = null;
 }
+function companyLinkFields() {
+  const companyId = document.getElementById('f-firmaKontakt')?.value || '';
+  if (companyId) {
+    const fields = { firmaKontaktId: companyId };
+    const comp = contacts.find(x => x.id === companyId);
+    // Firmenname uebernehmen, wenn das Feld leer ist
+    if (comp && !document.getElementById('f-firma').value.trim()) fields.firma = (comp.firma || comp.name || '').trim();
+    return fields;
+  }
+  return editingContactId ? { firmaKontaktId: firebase.firestore.FieldValue.delete() } : {};
+}
+
 async function saveContact() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { toast('Bitte einen Namen eingeben.'); return; }
@@ -1750,6 +1812,7 @@ async function saveContact() {
     plz: document.getElementById('f-plz').value.trim(),
     ort: document.getElementById('f-ort').value.trim(),
     notiz: document.getElementById('f-notiz').value.trim(),
+    ...companyLinkFields(),
     updatedAt: new Date().toISOString(),
     lastActivityAt: new Date().toISOString(),
     lastEditedBy: currentUserName || null
