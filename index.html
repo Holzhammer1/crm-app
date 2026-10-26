@@ -426,10 +426,17 @@
     <div class="panel">
       <h2>iPhone-/iCloud-Kontakte</h2>
       <p style="font-size:12.5px; color:var(--cream-dim); margin-top:-6px;">
-        Automatisch zugeordnete Kontakte sind ausgeblendet – hier siehst du nur die, die noch verknüpft werden können.
+        Automatisch zugeordnete Kontakte sind ausgeblendet. «Gleiche Person zuordnen» ergänzt einen bestehenden CRM-Kontakt um Telefon/E-Mail; «Als Mitarbeiter zu Firma» legt einen neuen Kontakt an, der mit der Firma verknüpft ist.
       </p>
       <input type="text" id="phoneContactSearch" placeholder="Kontakt suchen…" style="margin-bottom:12px;" oninput="renderPhoneContacts()">
       <div id="phoneContactList"></div>
+    </div>
+    <div class="panel" id="phoneLinkedPanel" style="display:none;">
+      <h2>Mit einer Firma verknüpft</h2>
+      <p style="font-size:12.5px; color:var(--cream-dim); margin-top:-6px;">
+        Diese iPhone-Kontakte wurden einem CRM-Kontakt mit anderem Namen zugeordnet (z.&nbsp;B. einer Firma). Sie sind dort nicht als Mitarbeiter sichtbar – mit «Als Mitarbeiter anlegen» bekommen sie einen eigenen Kontakt bei der Firma.
+      </p>
+      <div id="phoneLinkedList"></div>
     </div>
   </div>
 
@@ -780,6 +787,7 @@ async function fbLoadAll() {
     renderPipeline();
     renderActivityLog();
     renderFollowups();
+    renderPhoneLinkedToCompany();
     if (selectedContactId) renderContactDetail(selectedContactId);
   });
   fbDb.collection('crmTasks').orderBy('faelligAm').onSnapshot(snap => {
@@ -810,6 +818,7 @@ async function fbLoadAll() {
   fbDb.collection('crmPhoneContacts').onSnapshot(snap => {
     phoneContacts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderPhoneContacts();
+    renderPhoneLinkedToCompany();
   }, () => {});
   // E-Mails: Collection existiert erst nach dem ersten Sync-Lauf.
   fbDb.collection('crmEmails').onSnapshot(snap => {
@@ -2239,6 +2248,7 @@ let eventAssignId = null;
 
 function openEventAssignModal(eventId) {
   eventAssignId = eventId;
+  phoneEmployeeAssignId = null;
   phoneContactAssignId = null;
   companyLinkContactId = null;
   reviewDocAssignId = null;
@@ -2271,6 +2281,7 @@ let companyLinkContactId = null;
 
 function openCompanyLinkModal(contactId) {
   companyLinkContactId = contactId;
+  phoneEmployeeAssignId = null;
   eventAssignId = null;
   phoneContactAssignId = null;
   reviewDocAssignId = null;
@@ -2297,7 +2308,9 @@ async function assignContactToCompany(companyContactId) {
 }
 
 function handleAssignSelection(contactId) {
-  if (companyLinkContactId) {
+  if (phoneEmployeeAssignId) {
+    createEmployeeFromPhoneContact(phoneEmployeeAssignId, contactId);
+  } else if (companyLinkContactId) {
     assignContactToCompany(contactId);
   } else if (phoneContactAssignId) {
     assignPhoneContactToContact(contactId);
@@ -2320,6 +2333,7 @@ async function assignEventToContact(contactId) {
 let reviewDocAssignId = null;
 
 function openReviewAssignModal(docId) {
+  phoneEmployeeAssignId = null;
   const d = orderDocs.find(x => x.id === docId);
   if (d && !d.docType) { toast('Bitte zuerst den Typ wählen (Bestellung / AB/OC / RNG).'); return; }
   reviewDocAssignId = docId;
@@ -2482,15 +2496,98 @@ function renderPhoneContacts() {
         <div class="task-text">${escapeHtml(p.name || '')}${p.firma ? ' — <span style="color:var(--gold-soft);">' + escapeHtml(p.firma) + '</span>' : ''}</div>
         <div class="task-meta">${[p.mobil, p.telefon, p.email, [p.adresse, [p.plz, p.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).map(escapeHtml).join(' · ')}</div>
       </div>
-      <a href="#" onclick="openPhoneContactAssignModal('${p.id}'); return false;" style="color:var(--cream-dim); font-size:12px;">Kontakt zuordnen</a>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+        <a href="#" onclick="openPhoneContactAssignModal('${p.id}'); return false;" style="color:var(--cream-dim); font-size:12px;" title="Gleiche Person wie ein bestehender CRM-Kontakt">Gleiche Person zuordnen</a>
+        <a href="#" onclick="openPhoneEmployeeModal('${p.id}'); return false;" style="color:var(--gold-soft); font-size:12px; font-weight:600;" title="Neuer Kontakt, mit Firma verknüpft">+ Als Mitarbeiter zu Firma</a>
+      </div>
     </div>
   `).join('');
+}
+
+// iPhone-Kontakte, die einem CRM-Kontakt mit anderem Namen zugeordnet wurden (meist einer Firma)
+function normName(x) { return (x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim(); }
+
+function renderPhoneLinkedToCompany() {
+  const panel = document.getElementById('phoneLinkedPanel');
+  const el = document.getElementById('phoneLinkedList');
+  if (!panel || !el) return;
+  const items = phoneContacts.filter(p => {
+    if (!p.contactId || p.samePerson) return false;
+    const c = contacts.find(x => x.id === p.contactId);
+    if (!c) return false;
+    const pn = normName(p.name);
+    return pn && pn !== normName(c.name) && !normName(c.name).includes(pn) && !pn.includes(normName(c.name));
+  });
+  panel.style.display = items.length ? 'block' : 'none';
+  el.innerHTML = items.map(p => {
+    const c = contacts.find(x => x.id === p.contactId);
+    return `
+    <div class="task-item">
+      <div style="flex:1;">
+        <div class="task-text">${escapeHtml(p.name || '')} → <span style="color:var(--gold-soft);">${escapeHtml(c.firma || c.name || '')}</span></div>
+        <div class="task-meta">${[p.mobil, p.telefon, p.email].filter(Boolean).map(escapeHtml).join(' · ')}</div>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+        <button class="small primary" onclick="createEmployeeFromPhoneContact('${p.id}', '${c.id}')">Als Mitarbeiter anlegen</button>
+        <button class="small" onclick="markPhoneSamePerson('${p.id}')" title="Ist tatsächlich dieselbe Person – Hinweis ausblenden">Ist dieselbe Person</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function markPhoneSamePerson(phoneId) {
+  if (!fbDb) return;
+  await fbDb.collection('crmPhoneContacts').doc(phoneId).update({ samePerson: true });
+  toast('Ausgeblendet.');
+}
+
+let phoneEmployeeAssignId = null;
+
+function openPhoneEmployeeModal(phoneContactId) {
+  phoneEmployeeAssignId = phoneContactId;
+  phoneContactAssignId = null;
+  eventAssignId = null;
+  companyLinkContactId = null;
+  reviewDocAssignId = null;
+  const p = phoneContacts.find(x => x.id === phoneContactId);
+  document.getElementById('eventAssignTitle').textContent = `Firma für ${p?.name || 'Mitarbeiter'} wählen`;
+  document.getElementById('eventAssignSearch').value = p?.firma || '';
+  renderEventAssignResults();
+  document.getElementById('eventAssignModalBackdrop').classList.add('active');
+}
+
+// Neuen CRM-Kontakt aus einem iPhone-Kontakt anlegen und mit der Firma verknuepfen
+async function createEmployeeFromPhoneContact(phoneId, companyId) {
+  if (!fbDb) return;
+  const p = phoneContacts.find(x => x.id === phoneId);
+  const company = contacts.find(x => x.id === companyId);
+  if (!p || !company) return;
+  const now = new Date().toISOString();
+  const ref = await fbDb.collection('crmContacts').add({
+    name: p.name || '',
+    firma: (company.firma || company.name || '').trim(),
+    email: p.email || '',
+    telefon: p.telefon || '',
+    mobil: p.mobil || '',
+    adresse: p.adresse || company.adresse || '',
+    plz: p.plz || company.plz || '',
+    ort: p.ort || company.ort || '',
+    firmaKontaktId: company.id,
+    status: company.status || 'neu',
+    createdAt: now, updatedAt: now, lastActivityAt: now,
+    createdBy: currentUserName || null,
+  });
+  await fbDb.collection('crmPhoneContacts').doc(phoneId).update({ contactId: ref.id, samePerson: firebase.firestore.FieldValue.delete() });
+  document.getElementById('eventAssignModalBackdrop').classList.remove('active');
+  phoneEmployeeAssignId = null;
+  toast(`${p.name} ist jetzt Mitarbeiter von ${company.firma || company.name}.`);
 }
 
 let phoneContactAssignId = null;
 
 function openPhoneContactAssignModal(phoneContactId) {
   phoneContactAssignId = phoneContactId;
+  phoneEmployeeAssignId = null;
   eventAssignId = null;
   companyLinkContactId = null;
   reviewDocAssignId = null;
