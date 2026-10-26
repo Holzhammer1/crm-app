@@ -308,18 +308,18 @@
   </div>
 
   <div class="tabs">
-    <div class="tab" data-view="contacts">Kontakte <span class="count" id="countContacts">0</span></div>
+    <div class="tab active" data-view="contacts">Kontakte <span class="count" id="countContacts">0</span></div>
     <div class="tab" data-view="tasks">Aufgaben <span class="count" id="countTasks">0</span></div>
     <div class="tab" data-view="followups">Follow-ups <span class="count" id="countFollowups">0</span></div>
     <div class="tab" data-view="calendar">Kalender</div>
     <div class="tab" data-view="phonecontacts">iPhone-Kontakte <span class="count" id="countPhoneContacts">0</span></div>
-    <div class="tab active" data-view="pipeline">Pipeline</div>
+    <div class="tab" data-view="pipeline">Pipeline</div>
     <div class="tab" data-view="activitylog">Aktivität</div>
     <div class="tab" data-view="review">Zu prüfen <span class="count" id="countReview">0</span></div>
   </div>
 
   <!-- KONTAKTE -->
-  <div class="view" id="view-contacts">
+  <div class="view active" id="view-contacts">
     <div class="toolbar">
       <div class="search-wrap">
         <input type="text" id="contactSearch" placeholder="Kontakt suchen…" autocomplete="off">
@@ -434,7 +434,7 @@
   </div>
 
   <!-- PIPELINE -->
-  <div class="view active" id="view-pipeline">
+  <div class="view" id="view-pipeline">
     <input type="text" id="pipelineSearch" placeholder="Kontakt suchen…" style="margin-bottom:14px;" oninput="renderPipeline()">
     <div id="pipelineBoard" style="display:flex; gap:14px; overflow-x:auto; align-items:flex-start;"></div>
   </div>
