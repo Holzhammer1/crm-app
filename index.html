@@ -264,6 +264,7 @@
   <div class="tabs">
     <div class="tab" data-view="contacts">Kontakte <span class="count" id="countContacts">0</span></div>
     <div class="tab" data-view="tasks">Aufgaben <span class="count" id="countTasks">0</span></div>
+    <div class="tab" data-view="followups">Follow-ups <span class="count" id="countFollowups">0</span></div>
     <div class="tab" data-view="calendar">Kalender</div>
     <div class="tab" data-view="phonecontacts">iPhone-Kontakte <span class="count" id="countPhoneContacts">0</span></div>
     <div class="tab active" data-view="pipeline">Pipeline</div>
@@ -338,6 +339,19 @@
     <div class="panel">
       <h2>Erledigt</h2>
       <div id="taskListDone"></div>
+    </div>
+  </div>
+
+  <!-- FOLLOW-UPS -->
+  <div class="view" id="view-followups">
+    <div class="panel">
+      <h2>Offene Follow-ups</h2>
+      <div style="color:var(--cream-dim); font-size:12.5px; margin:-4px 0 12px 0;">Kundentermine, nach denen seit 7 Tagen keine Mail, kein Anruf, keine Offerte und kein Folgetermin erfasst wurde. Wird täglich geprüft und schliesst sich automatisch, sobald du dich meldest.</div>
+      <div id="followupListOpen"></div>
+    </div>
+    <div class="panel">
+      <h2>Zuletzt erledigt</h2>
+      <div id="followupListDone"></div>
     </div>
   </div>
 
@@ -712,11 +726,13 @@ async function fbLoadAll() {
     renderCalendar();
     renderPipeline();
     renderActivityLog();
+    renderFollowups();
     if (selectedContactId) renderContactDetail(selectedContactId);
   });
   fbDb.collection('crmTasks').orderBy('faelligAm').onSnapshot(snap => {
     tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTasks();
+    renderFollowups();
     if (selectedContactId) renderContactDetail(selectedContactId);
   });
   // Offers/invoices/events: Collections existieren erst nach dem ersten Sync-Lauf.
@@ -1433,6 +1449,73 @@ function renderTasks() {
       </div>
     </div>
   `).join('') : `<div class="empty-state">Noch nichts erledigt.</div>`;
+}
+
+// ---------- Follow-ups (angelegt von followup_check.py) ----------
+function followupContactEmail(c) {
+  if (!c) return '';
+  if (c.email) return c.email;
+  if ((c.weitereEmails || []).length) return c.weitereEmails[0];
+  const emp = contacts.find(x => x.firmaKontaktId === c.id && x.email);
+  return emp ? emp.email : '';
+}
+
+function openFollowupContact(contactId) {
+  switchToTab('contacts');
+  selectContact(contactId);
+}
+
+function openFollowupActivity(contactId) {
+  openActivityModal(contactId);
+  document.getElementById('act-typ').value = 'anruf';
+}
+
+function renderFollowups() {
+  const openEl = document.getElementById('followupListOpen');
+  if (!openEl) return;
+  const fu = tasks.filter(t => t.followupEventId);
+  const open = fu.filter(t => !t.erledigt).sort((a, b) => (a.followupEventDate || '').localeCompare(b.followupEventDate || ''));
+  const done = fu.filter(t => t.erledigt).sort((a, b) => (b.erledigtAm || b.createdAt || '').localeCompare(a.erledigtAm || a.createdAt || '')).slice(0, 15);
+  document.getElementById('countFollowups').textContent = open.length;
+
+  const daysSince = iso => {
+    const d = iso ? new Date(iso) : null;
+    return d && !isNaN(d) ? Math.floor((Date.now() - d.getTime()) / 86400000) : null;
+  };
+
+  openEl.innerHTML = open.length ? open.map(t => {
+    const c = contacts.find(x => x.id === t.contactId);
+    const name = c ? (c.firma || c.name || '') : '';
+    const mail = followupContactEmail(c);
+    const days = daysSince(t.followupEventDate);
+    const subject = encodeURIComponent(`Unser Treffen vom ${fmtDate(t.followupEventDate)}`);
+    return `
+    <div class="task-item" style="align-items:flex-start; flex-direction:column; gap:6px;">
+      <div style="display:flex; justify-content:space-between; width:100%; gap:8px;">
+        <a href="#" onclick="openFollowupContact('${t.contactId}'); return false;" style="flex:1; color:var(--gold-soft); font-weight:600;">${escapeHtml(name || 'Kontakt')}</a>
+        ${days !== null ? `<span class="task-meta ${days >= 10 ? 'overdue' : ''}" style="white-space:nowrap;">seit ${days} Tagen</span>` : ''}
+      </div>
+      <div class="task-meta">Termin: ${escapeHtml(t.followupEventTitle || '')} · ${fmtDate(t.followupEventDate)}</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        ${mail ? `<button class="small" onclick="location.href='mailto:${encodeURI(mail)}?subject=${subject}'">✉ Mail schreiben</button>` : ''}
+        <button class="small" onclick="openFollowupActivity('${t.contactId}')">☎ Anruf/Aktivität erfassen</button>
+        <button class="small primary" onclick="toggleTask('${t.id}', true)">✓ Erledigt</button>
+      </div>
+    </div>`;
+  }).join('') : `<div class="empty-state">Keine offenen Follow-ups – du hast dich überall gemeldet. 👍</div>`;
+
+  document.getElementById('followupListDone').innerHTML = done.length ? done.map(t => {
+    const c = contacts.find(x => x.id === t.contactId);
+    const name = c ? (c.firma || c.name || '') : '';
+    return `
+    <div class="task-item done">
+      <input type="checkbox" checked onchange="toggleTask('${t.id}', this.checked)" title="Wieder öffnen">
+      <div style="flex:1;">
+        <div class="task-text">${escapeHtml(name)} — ${escapeHtml(t.followupEventTitle || '')}</div>
+        <div class="task-meta">${t.autoErledigt ? 'Automatisch: ' + escapeHtml(t.autoErledigt) : 'Manuell erledigt'}</div>
+      </div>
+    </div>`;
+  }).join('') : `<div class="empty-state">Noch nichts erledigt.</div>`;
 }
 
 async function toggleTask(id, done) {
