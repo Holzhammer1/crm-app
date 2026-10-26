@@ -1115,10 +1115,13 @@ function renderContactDetailInner(id) {
         </div>
       </div>
       <div style="display:flex; gap:8px;">
+        ${bexioStatusHtml(c)}
         <button class="small" onclick="openContactModal('${c.id}')">Bearbeiten</button>
         <button class="small ghost" onclick="deleteContactFromDetail('${c.id}')">Löschen</button>
       </div>
     </div>
+    ${c.bexioSyncFehler ? `<div class="field" style="color:#e07a5f;">⚠ Bexio-Abgleich fehlgeschlagen: ${escapeHtml(c.bexioSyncFehler)}</div>` : ''}
+    ${c.bexioHinweis ? `<div class="field" style="color:var(--cream-dim);">${escapeHtml(c.bexioHinweis)}</div>` : ''}
     ${c.email ? `<div class="field">✉ <b>${escapeHtml(c.email)}</b></div>` : ''}
     ${(c.weitereEmails || []).map(e => `
       <div class="field" style="color:var(--cream-dim);">✉ ${escapeHtml(e)} <a href="#" onclick="removeExtraEmail('${c.id}', '${escapeHtml(e).replace(/'/g, "\\'")}'); return false;" style="color:var(--cream-dim); margin-left:6px;">entfernen</a></div>
@@ -1846,6 +1849,24 @@ async function deleteContact() {
   if (selectedContactId === editingContactId) selectedContactId = null;
   closeContactModal();
   renderContactDetail(null);
+}
+
+// Bexio-Status in der Detailansicht: verknüpft / wartet auf Übertragung / Knopf zur Freigabe.
+// Die eigentliche Übertragung macht der tägliche Bexio-Sync (bexio_contacts_writeback.py).
+function bexioStatusHtml(c) {
+  if (c.bexioId) return `<span class="small" style="align-self:center; color:var(--cream-dim);" title="Bexio-ID ${escapeHtml(String(c.bexioId))}">Bexio ✓</span>`;
+  if (c.bexioFreigabe) return `<button class="small ghost" onclick="toggleBexioFreigabe('${c.id}', false)" title="Wird beim nächsten Bexio-Sync übertragen. Klicken zum Zurückziehen.">⏳ wartet auf Bexio</button>`;
+  return `<button class="small ghost" onclick="toggleBexioFreigabe('${c.id}', true)">An Bexio übergeben</button>`;
+}
+async function toggleBexioFreigabe(contactId, on) {
+  if (!fbDb) return;
+  const c = contacts.find(x => x.id === contactId);
+  if (on && !confirm(`"${c ? c.name : 'Diesen Kontakt'}" beim nächsten Bexio-Sync in Bexio anlegen?\n\nGibt es in Bexio schon einen Kontakt mit derselben E-Mail, wird nur verknüpft.`)) return;
+  const FV = firebase.firestore.FieldValue;
+  await fbDb.collection('crmContacts').doc(contactId).update(on
+    ? { bexioFreigabe: true, bexioFreigabeAm: new Date().toISOString(), bexioFreigabeVon: currentUserName || null, bexioSyncFehler: FV.delete() }
+    : { bexioFreigabe: FV.delete(), bexioFreigabeAm: FV.delete(), bexioFreigabeVon: FV.delete() });
+  toast(on ? 'Freigegeben – wird beim nächsten Bexio-Sync übertragen.' : 'Freigabe zurückgezogen.');
 }
 
 // Löschen direkt aus der Detailansicht (ohne erst "Bearbeiten" öffnen zu müssen)
@@ -2612,6 +2633,8 @@ async function assignPhoneContactToContact(contactId) {
     if (!mainContact.plz && phoneContact.plz) fill.plz = phoneContact.plz;
     if (!mainContact.ort && phoneContact.ort) fill.ort = phoneContact.ort;
     fill.lastActivityAt = new Date().toISOString();
+    // Kontaktdaten ergänzt -> als Änderung markieren, damit der Bexio-Abgleich sie übernimmt
+    if (Object.keys(fill).length > 1) fill.updatedAt = fill.lastActivityAt;
     await fbDb.collection('crmContacts').doc(contactId).update(fill);
   }
   document.getElementById('eventAssignModalBackdrop').classList.remove('active');
