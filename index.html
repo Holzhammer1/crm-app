@@ -184,37 +184,46 @@
   .pipeline-card .firma { font-size: 11.5px; color: var(--gold-soft); }
 
   .contact-card-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 14px; margin-bottom: 20px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px; margin-bottom: 20px;
   }
   .contact-card {
     --stage: var(--cream-dim);
     position: relative; background: var(--anthracite-800);
     border: 1px solid var(--anthracite-line); border-left: 4px solid var(--stage);
-    border-radius: 10px; box-shadow: var(--shadow); padding: 12px 12px 12px 14px;
-    cursor: pointer; display: flex; gap: 12px; align-items: center;
+    border-radius: 12px; box-shadow: var(--shadow); padding: 16px 16px 16px 18px;
+    cursor: pointer; display: flex; gap: 14px; align-items: center;
     transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   .contact-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(38,35,25,0.10); border-color: color-mix(in srgb, var(--stage) 55%, var(--anthracite-line)); border-left-color: var(--stage); }
   .contact-card.selected { box-shadow: 0 0 0 2px var(--gold); }
   .contact-card.bulk-selected { box-shadow: 0 0 0 2px var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--anthracite-800)); }
   .contact-card .info { min-width: 0; flex: 1; }
-  .contact-card .name { font-size: 14px; font-weight: 600; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
-  .contact-card .firma { font-size: 12px; color: var(--gold-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-  .contact-card .card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; min-width: 0; }
+  .contact-card .name { font-size: 15.5px; font-weight: 600; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+  .contact-card .firma { font-size: 13px; color: var(--gold-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .contact-card .card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 8px; min-width: 0; }
   .contact-card .stage-pill {
-    font-size: 10.5px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+    font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
     color: color-mix(in srgb, var(--stage) 85%, #000); background: color-mix(in srgb, var(--stage) 14%, var(--anthracite-800));
   }
-  .contact-card .card-sub { font-size: 11px; color: var(--cream-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact-card .card-sub { font-size: 11.5px; color: var(--cream-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .avatar.card {
-    width: 46px; height: 46px; border-radius: 12px; font-size: 15px; font-weight: 600; font-family: inherit;
+    width: 58px; height: 58px; border-radius: 14px; font-size: 18px; font-weight: 600; font-family: inherit;
     background: color-mix(in srgb, var(--stage, var(--gold)) 15%, var(--anthracite-800));
     color: color-mix(in srgb, var(--stage, var(--gold)) 80%, #000);
     border: 1px solid color-mix(in srgb, var(--stage, var(--gold)) 25%, var(--anthracite-line));
   }
+  .letter-divider {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; margin: 10px 0 -4px 2px;
+    font-family: Georgia, serif; font-size: 20px; color: var(--gold-soft);
+  }
+  .letter-divider::after { content: ''; flex: 1; height: 1px; background: var(--anthracite-line); }
+  .letter-divider:first-child { margin-top: 0; }
+  .sort-toggle { display: inline-flex; border: 1px solid var(--anthracite-line); border-radius: 8px; overflow: hidden; flex: none; }
+  .sort-toggle button { border: none; border-radius: 0; background: var(--anthracite-800); color: var(--cream-dim); padding: 8px 12px; font-size: 12.5px; cursor: pointer; }
+  .sort-toggle button.active { background: color-mix(in srgb, var(--gold) 16%, var(--anthracite-800)); color: var(--gold-soft); font-weight: 600; }
   .avatar.card.has-logo { background: #fff; border-color: var(--anthracite-line); }
-  .avatar.card img { padding: 6px; box-sizing: border-box; }
+  .avatar.card img { padding: 7px; box-sizing: border-box; }
   .empty-state .hint { font-size: 11.5px; margin-top: 6px; color: var(--anthracite-line); }
 
   .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--anthracite-700); }
@@ -296,6 +305,10 @@
       <div class="search-wrap">
         <input type="text" id="contactSearch" placeholder="Kontakt suchen…" autocomplete="off">
         <div class="search-dropdown" id="contactSearchDropdown"></div>
+      </div>
+      <div class="sort-toggle" id="contactSortToggle">
+        <button data-sort="abc" onclick="setContactSort('abc')">A–Z</button>
+        <button data-sort="recent" onclick="setContactSort('recent')">Zuletzt aktiv</button>
       </div>
       <button id="btnBulkMode">Mehrere auswählen</button>
       <button class="primary" id="btnNewContact">+ Kontakt</button>
@@ -792,19 +805,54 @@ async function fbLoadAll() {
 let bulkMode = false;
 let bulkSelectedIds = new Set();
 
+// Sortierung der Kontaktkarten: "abc" (Standard, mit Buchstaben-Trennern) oder "recent"
+let contactSort = 'abc';
+try { contactSort = localStorage.getItem('crmContactSort') || 'abc'; } catch (e) {}
+
+function setContactSort(mode) {
+  contactSort = mode;
+  try { localStorage.setItem('crmContactSort', mode); } catch (e) {}
+  renderContacts();
+}
+
+function contactSortKey(c) {
+  return (c.firma || c.name || '').trim();
+}
+
+function contactLetter(c) {
+  const ch = contactSortKey(c).normalize('NFD').replace(/[\u0300-\u036f]/g, '').charAt(0).toUpperCase();
+  return /[A-Z]/.test(ch) ? ch : '#';
+}
+
 function renderContacts() {
   const q = (document.getElementById('contactSearch').value || '').toLowerCase();
   const grid = document.getElementById('contactCardGrid');
-  const filtered = contacts.filter(c =>
+  document.querySelectorAll('#contactSortToggle button').forEach(b => b.classList.toggle('active', b.dataset.sort === contactSort));
+  let filtered = contacts.filter(c =>
     !q || (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q)
   );
+  if (contactSort === 'abc') {
+    filtered = [...filtered].sort((a, b) => {
+      const la = contactLetter(a), lb = contactLetter(b);
+      if (la !== lb) return la === '#' ? 1 : lb === '#' ? -1 : la.localeCompare(lb);
+      return contactSortKey(a).localeCompare(contactSortKey(b), 'de', { sensitivity: 'base' })
+        || (a.name || '').localeCompare(b.name || '', 'de', { sensitivity: 'base' });
+    });
+  }
   document.getElementById('countContacts').textContent = contacts.length;
 
   if (filtered.length === 0) {
     grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Keine Kontakte gefunden.</div>`;
     return;
   }
-  grid.innerHTML = filtered.map(c => `
+  let lastLetter = null;
+  grid.innerHTML = filtered.map(c => {
+    let divider = '';
+    if (contactSort === 'abc') {
+      const letter = contactLetter(c);
+      if (letter !== lastLetter) { divider = `<div class="letter-divider">${letter}</div>`; lastLetter = letter; }
+    }
+    return divider + `
     <div class="contact-card${c.id === selectedContactId ? ' selected' : ''}${bulkSelectedIds.has(c.id) ? ' bulk-selected' : ''}" data-id="${c.id}" style="--stage:${getStageColor(c.status)};">
       ${bulkMode ? `<input type="checkbox" class="bulk-checkbox" data-id="${c.id}" ${bulkSelectedIds.has(c.id) ? 'checked' : ''} style="position:absolute; top:8px; right:8px; width:18px; height:18px; z-index:2;">` : ''}
       ${avatarHtml(c, 'card')}
@@ -816,8 +864,8 @@ function renderContacts() {
           <span class="card-sub">${escapeHtml([c.ort, relativeDays(c.lastActivityAt)].filter(Boolean).join(' · '))}</span>
         </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   grid.querySelectorAll('.contact-card').forEach(card => {
     if (bulkMode) {
