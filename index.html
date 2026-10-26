@@ -552,6 +552,20 @@
   </div>
 </div>
 
+<!-- Bexio-Freigabe-Modal -->
+<div class="modal-backdrop" id="bexioFreigabeBackdrop">
+  <div class="modal" style="max-width:380px;">
+    <h2>An Bexio übergeben</h2>
+    <p style="color:var(--cream-dim); margin-top:0;"><b id="bexioFreigabeName"></b> beim nächsten Bexio-Sync anlegen in:</p>
+    <div id="bexioFreigabeFirmen"></div>
+    <p style="color:var(--cream-dim); font-size:12.5px;">Gibt es dort schon einen Kontakt mit derselben E-Mail, wird nur verknüpft.</p>
+    <div class="form-actions">
+      <button onclick="closeBexioFreigabe()">Abbrechen</button>
+      <button class="primary" onclick="saveBexioFreigabe()">Freigeben</button>
+    </div>
+  </div>
+</div>
+
 <!-- Aktivität-Modal -->
 <div class="modal-backdrop" id="activityModalBackdrop">
   <div class="modal">
@@ -1115,10 +1129,13 @@ function renderContactDetailInner(id) {
         </div>
       </div>
       <div style="display:flex; gap:8px;">
+        ${bexioStatusHtml(c)}
         <button class="small" onclick="openContactModal('${c.id}')">Bearbeiten</button>
         <button class="small ghost" onclick="deleteContactFromDetail('${c.id}')">Löschen</button>
       </div>
     </div>
+    ${c.bexioSyncFehler ? `<div class="field" style="color:#e07a5f;">⚠ Bexio-Abgleich fehlgeschlagen: ${escapeHtml(c.bexioSyncFehler)}</div>` : ''}
+    ${c.bexioHinweis ? `<div class="field" style="color:var(--cream-dim);">${escapeHtml(c.bexioHinweis)}</div>` : ''}
     ${c.email ? `<div class="field">✉ <b>${escapeHtml(c.email)}</b></div>` : ''}
     ${(c.weitereEmails || []).map(e => `
       <div class="field" style="color:var(--cream-dim);">✉ ${escapeHtml(e)} <a href="#" onclick="removeExtraEmail('${c.id}', '${escapeHtml(e).replace(/'/g, "\\'")}'); return false;" style="color:var(--cream-dim); margin-left:6px;">entfernen</a></div>
@@ -1290,13 +1307,13 @@ async function deleteDocument(contactId, fileName) {
 function renderOfferList(list) {
   if (!list.length) return `<div class="empty-state">Noch keine Offerten synchronisiert.<div class="hint">Erscheint hier automatisch, sobald der Bexio-Sync eingerichtet ist.</div></div>`;
   return `<table><thead><tr><th>Nr.</th><th>Datum</th><th>Betrag</th><th>Status</th></tr></thead><tbody>
-    ${list.map(o => `<tr><td>${escapeHtml(o.nr||'')}</td><td>${fmtDate(o.datum)}</td><td>${fmtBetrag(o.betrag)}</td><td><span class="pill">${escapeHtml(o.status||'')}</span></td></tr>`).join('')}
+    ${list.map(o => `<tr><td>${escapeHtml(o.nr||'')}${bexioFirmaTag(o)}</td><td>${fmtDate(o.datum)}</td><td>${fmtBetrag(o.betrag)}</td><td><span class="pill">${escapeHtml(o.status||'')}</span></td></tr>`).join('')}
   </tbody></table>`;
 }
 function renderInvoiceList(list) {
   if (!list.length) return `<div class="empty-state">Noch keine Rechnungen synchronisiert.<div class="hint">Erscheint hier automatisch, sobald der Bexio-Sync eingerichtet ist.</div></div>`;
   return `<table><thead><tr><th>Nr.</th><th>Datum</th><th>Betrag</th><th>Status</th></tr></thead><tbody>
-    ${list.map(i => `<tr><td>${escapeHtml(i.nr||'')}</td><td>${fmtDate(i.datum)}</td><td>${fmtBetrag(i.betrag)}</td><td><span class="pill ${i.bezahlt?'green':'amber'}">${i.bezahlt?'Bezahlt':'Offen'}</span></td></tr>`).join('')}
+    ${list.map(i => `<tr><td>${escapeHtml(i.nr||'')}${bexioFirmaTag(i)}</td><td>${fmtDate(i.datum)}</td><td>${fmtBetrag(i.betrag)}</td><td><span class="pill ${i.bezahlt?'green':'amber'}">${i.bezahlt?'Bezahlt':'Offen'}</span></td></tr>`).join('')}
   </tbody></table>`;
 }
 function renderEventList(list) {
@@ -1846,6 +1863,68 @@ async function deleteContact() {
   if (selectedContactId === editingContactId) selectedContactId = null;
   closeContactModal();
   renderContactDetail(null);
+}
+
+// Bexio-Status in der Detailansicht: pro Firma verknüpft / wartet / Knopf zur Freigabe.
+// Die eigentliche Übertragung macht der tägliche Bexio-Sync (bexio_contacts_writeback.py).
+const BEXIO_FIRMEN = { trendsense: 'TrendSENSE', kawea: 'kawea' };
+function bexioLinks(c) {
+  const ids = { ...(c.bexioIds || {}) };
+  // Kontakte von vor der Umstellung haben nur bexioId (wird beim nächsten Sync zugeordnet)
+  if (c.bexioId && !Object.keys(ids).length) ids['?'] = c.bexioId;
+  return ids;
+}
+function bexioStatusHtml(c) {
+  const ids = bexioLinks(c);
+  const pending = c.bexioFreigabeFirmen || [];
+  const parts = [];
+  Object.entries(ids).forEach(([f, id]) => parts.push(
+    `<span class="small" style="align-self:center; color:var(--cream-dim);" title="Bexio-ID ${escapeHtml(String(id))}">${escapeHtml(BEXIO_FIRMEN[f] || 'Bexio')} ✓</span>`));
+  pending.filter(f => !ids[f]).forEach(f => parts.push(
+    `<button class="small ghost" onclick="withdrawBexioFreigabe('${c.id}', '${f}')" title="Wird beim nächsten Bexio-Sync übertragen. Klicken zum Zurückziehen.">⏳ ${escapeHtml(BEXIO_FIRMEN[f] || f)}</button>`));
+  const open = Object.keys(BEXIO_FIRMEN).filter(f => !ids[f] && !pending.includes(f));
+  if (open.length && !ids['?']) parts.push(`<button class="small ghost" onclick="openBexioFreigabe('${c.id}')">An Bexio übergeben</button>`);
+  return parts.join('');
+}
+let bexioFreigabeContactId = null;
+function openBexioFreigabe(contactId) {
+  const c = contacts.find(x => x.id === contactId);
+  if (!c) return;
+  bexioFreigabeContactId = contactId;
+  const ids = bexioLinks(c), pending = c.bexioFreigabeFirmen || [];
+  document.getElementById('bexioFreigabeName').textContent = c.name || '';
+  document.getElementById('bexioFreigabeFirmen').innerHTML = Object.entries(BEXIO_FIRMEN)
+    .filter(([f]) => !ids[f] && !pending.includes(f))
+    .map(([f, label]) => `<label style="display:flex; gap:8px; align-items:center; margin:6px 0;"><input type="checkbox" value="${f}" style="width:auto;"> ${label}</label>`).join('');
+  document.getElementById('bexioFreigabeBackdrop').classList.add('active');
+}
+function closeBexioFreigabe() {
+  document.getElementById('bexioFreigabeBackdrop').classList.remove('active');
+  bexioFreigabeContactId = null;
+}
+async function saveBexioFreigabe() {
+  const firmen = [...document.querySelectorAll('#bexioFreigabeFirmen input:checked')].map(i => i.value);
+  if (!firmen.length) { toast('Bitte mindestens eine Firma wählen.'); return; }
+  if (!fbDb || !bexioFreigabeContactId) return;
+  const FV = firebase.firestore.FieldValue;
+  await fbDb.collection('crmContacts').doc(bexioFreigabeContactId).update({
+    bexioFreigabeFirmen: FV.arrayUnion(...firmen),
+    bexioFreigabeAm: new Date().toISOString(),
+    bexioFreigabeVon: currentUserName || null,
+    bexioSyncFehler: FV.delete()
+  });
+  closeBexioFreigabe();
+  toast('Freigegeben – wird beim nächsten Bexio-Sync übertragen.');
+}
+async function withdrawBexioFreigabe(contactId, firma) {
+  if (!fbDb) return;
+  if (!confirm(`Freigabe für ${BEXIO_FIRMEN[firma] || firma} zurückziehen?`)) return;
+  await fbDb.collection('crmContacts').doc(contactId).update({ bexioFreigabeFirmen: firebase.firestore.FieldValue.arrayRemove(firma) });
+  toast('Freigabe zurückgezogen.');
+}
+function bexioFirmaTag(d) {
+  if (!d.bexioFirma) return '';
+  return ` <span class="pill" style="font-size:11px;">${d.bexioFirma === 'trendsense' ? 'TS' : escapeHtml(BEXIO_FIRMEN[d.bexioFirma] || d.bexioFirma)}</span>`;
 }
 
 // Löschen direkt aus der Detailansicht (ohne erst "Bearbeiten" öffnen zu müssen)
@@ -2612,6 +2691,8 @@ async function assignPhoneContactToContact(contactId) {
     if (!mainContact.plz && phoneContact.plz) fill.plz = phoneContact.plz;
     if (!mainContact.ort && phoneContact.ort) fill.ort = phoneContact.ort;
     fill.lastActivityAt = new Date().toISOString();
+    // Kontaktdaten ergänzt -> als Änderung markieren, damit der Bexio-Abgleich sie übernimmt
+    if (Object.keys(fill).length > 1) fill.updatedAt = fill.lastActivityAt;
     await fbDb.collection('crmContacts').doc(contactId).update(fill);
   }
   document.getElementById('eventAssignModalBackdrop').classList.remove('active');
