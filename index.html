@@ -1238,7 +1238,7 @@ const KA_GRUPPEN = { retail: 'Retail Key Account', gastro: 'Gastro-Distributor' 
 const KA_ACTIVITY_TYPES = new Set(['anruf', 'email', 'meeting']);
 const DAY_MS = 86400000;
 
-function isKeyAccount(c) { return !!(c && c.keyAccount && KA_GRUPPEN[c.keyAccount.gruppe] && contactType(c) === 'firma' && !isKaweaCustomer(c)); }
+function isKeyAccount(c) { return !!(c && c.keyAccount && KA_GRUPPEN[c.keyAccount.gruppe] && contactType(c) === 'firma'); }
 
 // Firma + verknüpfte Mitarbeiter: IDs, E-Mail-Adressen und wer hinter welcher Adresse steht
 function kaScope(c) {
@@ -1328,7 +1328,6 @@ function renderKeyAccountBox(c) {
     }
     return '';  // Key Account nur bei Firmen
   }
-  if (isKaweaCustomer(c)) return '';  // kawea-Kunden (Kleinkunden) sind keine Key Accounts
   const ka = c.keyAccount || {};
   const st = isKeyAccount(c) ? kaStatus(c) : null;
   return `<div class="ka-box">
@@ -1362,7 +1361,7 @@ function kaHeaderHtml(c) {
       ${KA_DOT[st.ampel]} ${escapeHtml(st.text)} · letzter Kontakt ${st.last ? 'vor ' + Math.floor((Date.now() - st.last.t) / DAY_MS) + ' T.' : '–'}</span>
       ${comp === c ? `<a href="#" onclick="if (confirm('${escapeHtml((c.firma || c.name || '').replace(/'/g, ''))} nicht mehr als Key Account führen?')) setKeyAccount('${c.id}', '', null); return false;" title="Key Account entfernen" style="font-size:11.5px; color:var(--cream-dim);">✕ entfernen</a>` : ''}`;
   }
-  if (comp === c && contactType(c) === 'firma' && !isKaweaCustomer(c)) {
+  if (comp === c && contactType(c) === 'firma') {
     return `<a href="#" onclick="setKeyAccount('${c.id}', 'retail', 4); return false;" style="font-size:11.5px; color:var(--cream-dim);">+ als Key Account führen</a>`;
   }
   return '';
@@ -1372,7 +1371,7 @@ async function bulkSetKeyAccount(gruppe) {
   if (!fbDb || bulkSelectedIds.size === 0 || !gruppe) return;
   const ids = Array.from(bulkSelectedIds).filter(id => {
     const c = contacts.find(x => x.id === id);
-    return c && contactType(c) === 'firma' && !isKaweaCustomer(c);
+    return c && contactType(c) === 'firma';
   });
   const skipped = bulkSelectedIds.size - ids.length;
   for (let i = 0; i < ids.length; i += 400) {
@@ -1387,7 +1386,7 @@ async function bulkSetKeyAccount(gruppe) {
     await batch.commit();
   }
   toast(`${ids.length} Firma(n) ${gruppe === 'keiner' ? 'sind keine Key Accounts mehr' : 'als ' + KA_GRUPPEN[gruppe] + ' gesetzt'}`
-    + (skipped ? ` – ${skipped} übersprungen (keine Firma oder kawea-Kunde)` : '') + '.');
+    + (skipped ? ` – ${skipped} übersprungen (keine Firma)` : '') + '.');
   setBulkMode(false);
 }
 
@@ -1558,7 +1557,7 @@ function renderRevenueBox(c) {
     return `<div class="field" style="font-size:12.5px;">Umsatz: keine Rechnungen in den letzten zwei Jahren (letzte Rechnung ${st.lastDate ? fmtDate(new Date(st.lastDate)) : '–'}).${revenueHint(st)}${viaFirma}</div>`;
   }
   return `<div class="field" style="margin-top:6px;">
-    <div style="font-size:12.5px;">Umsatz ${contactType(c) === 'firma' ? '(inkl. verknüpfte Mitarbeiter)' : ''} – Hersteller-Rechnungen${isKaweaCustomer(c) ? ' und kawea-Rechnungen aus Bexio' : ''}</div>
+    <div style="font-size:12.5px;">Umsatz ${contactType(c) === 'firma' ? '(inkl. verknüpfte Mitarbeiter)' : ''} – Hersteller-Rechnungen${invoices.some(i => i.bexioFirma === 'kawea' && revenueIds(c).has(i.contactId)) ? ' und kawea-Rechnungen aus Bexio' : ''}</div>
     ${curs.map(cur => {
       const r = st.byCur[cur];
       const brands = Object.entries(r.brands).filter(([, b]) => b.ytd || b.ytdPrev)
