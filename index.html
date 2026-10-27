@@ -1280,7 +1280,7 @@ function kaTouches(c) {
 }
 
 function kaStatus(c) {
-  const wochen = (c.keyAccount && +c.keyAccount.wochen) || 6;
+  const wochen = (c.keyAccount && +c.keyAccount.wochen) || 4;
   const { last, next } = kaTouches(c);
   const now = Date.now();
   const res = { wochen, last, next };
@@ -1334,7 +1334,7 @@ function renderKeyAccountBox(c) {
       </select>
       ${isKeyAccount(c) ? `<span>Kontakt alle</span>
       <select onchange="setKeyAccount('${c.id}', null, this.value)">
-        ${[4, 5, 6].map(w => `<option value="${w}" ${(+ka.wochen || 6) === w ? 'selected' : ''}>${w} Wochen</option>`).join('')}
+        ${[4, 5, 6].map(w => `<option value="${w}" ${(+ka.wochen || 4) === w ? 'selected' : ''}>${w} Wochen</option>`).join('')}
       </select>` : ''}
     </div>
     ${st ? `<div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -1352,7 +1352,7 @@ async function setKeyAccount(contactId, gruppe, wochen) {
   if (!c) return;
   let value;
   if (gruppe === '') value = firebase.firestore.FieldValue.delete();
-  else value = { gruppe: gruppe || (c.keyAccount && c.keyAccount.gruppe) || 'retail', wochen: +(wochen || (c.keyAccount && c.keyAccount.wochen) || 6) };
+  else value = { gruppe: gruppe || (c.keyAccount && c.keyAccount.gruppe) || 'retail', wochen: +(wochen || (c.keyAccount && c.keyAccount.wochen) || 4) };
   await fbDb.collection('crmContacts').doc(contactId).update({ keyAccount: value, lastEditedBy: currentUserName || null });
   toast(gruppe === '' ? 'Kein Key Account mehr.' : 'Key Account gespeichert.');
 }
