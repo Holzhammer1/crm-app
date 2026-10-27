@@ -254,6 +254,23 @@
     color: color-mix(in srgb, var(--stage, var(--gold)) 80%, #000);
     border: 1px solid color-mix(in srgb, var(--stage, var(--gold)) 25%, var(--anthracite-line));
   }
+  /* Key Accounts: Kontakt-Ampel */
+  .ka-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .ka-tag.gruen { background: color-mix(in srgb, var(--green) 14%, var(--anthracite-800)); color: var(--green); }
+  .ka-tag.gelb { background: color-mix(in srgb, var(--amber) 16%, var(--anthracite-800)); color: var(--amber); }
+  .ka-tag.rot { background: color-mix(in srgb, var(--red) 14%, var(--anthracite-800)); color: var(--red); }
+  .ka-box { border: 1px solid var(--anthracite-line); border-radius: 10px; padding: 10px 12px; margin: 8px 0 4px; }
+  .ka-box select { width: auto; padding: 4px 8px; font-size: 12.5px; }
+  .ka-row { display: grid; grid-template-columns: 14px minmax(0, 1.4fr) minmax(0, 2fr) auto; gap: 10px; align-items: center;
+    padding: 10px 12px; border: 1px solid var(--anthracite-line); border-left: 4px solid var(--ka); border-radius: 10px; background: var(--anthracite-800); margin-bottom: 8px; }
+  .ka-row .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--ka); }
+  .ka-row .ka-name { font-weight: 600; color: var(--cream); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ka-row .ka-sub { font-size: 12px; color: var(--cream-dim); }
+  .ka-row .ka-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 720px) { .ka-row { grid-template-columns: 14px minmax(0, 1fr); } .ka-row .ka-mid, .ka-row .ka-actions { grid-column: 2; justify-content: flex-start; } }
+  .ka-summary { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--cream-dim); margin: -4px 0 14px; }
+  .ka-summary b { color: var(--cream); }
+
   /* Kontakt-Typ: Firma / Mitarbeiter / Privat */
   .avatar.card.person { border-radius: 50%; }
   .type-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
@@ -341,6 +358,7 @@
     <div class="tab active" data-view="contacts">Kontakte <span class="count" id="countContacts">0</span></div>
     <div class="tab" data-view="tasks">Aufgaben <span class="count" id="countTasks">0</span></div>
     <div class="tab" data-view="followups">Follow-ups <span class="count" id="countFollowups">0</span></div>
+    <div class="tab" data-view="keyaccounts">Key Accounts <span class="count" id="countKeyAccounts">0</span></div>
     <div class="tab" data-view="calendar">Kalender</div>
     <div class="tab" data-view="phonecontacts">iPhone-Kontakte <span class="count" id="countPhoneContacts">0</span></div>
     <div class="tab" data-view="pipeline">Pipeline</div>
@@ -430,6 +448,15 @@
   </div>
 
   <!-- FOLLOW-UPS -->
+  <div class="view" id="view-keyaccounts">
+    <div class="panel">
+      <h2>Key Accounts – Kontakt-Ampel</h2>
+      <div style="color:var(--cream-dim); font-size:12.5px; margin:-4px 0 10px 0;">Jeder Key Account muss spätestens alle 4–6 Wochen von uns hören: gesendete Mail, Anruf, Meeting, Termin oder Offerte. Ein geplanter Termin zählt auch. Gelb = noch höchstens 7 Tage, Rot = überfällig. Key Account wird im Kontakt festgelegt.</div>
+      <div class="ka-summary" id="kaSummary"></div>
+      <div id="kaList"></div>
+    </div>
+  </div>
+
   <div class="view" id="view-followups">
     <div class="panel">
       <h2>Offene Follow-ups</h2>
@@ -844,6 +871,7 @@ async function fbLoadAll() {
     renderPipeline();
     renderActivityLog();
     renderFollowups();
+    renderKeyAccounts();
     renderPhoneLinkedToCompany();
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
@@ -858,6 +886,7 @@ async function fbLoadAll() {
   // Offers/invoices/events: Collections existieren erst nach dem ersten Sync-Lauf.
   fbDb.collection('crmOffers').onSnapshot(snap => {
     offers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
   }, () => {});
@@ -869,10 +898,12 @@ async function fbLoadAll() {
   fbDb.collection('crmEvents').onSnapshot(snap => {
     events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderCalendar();
+    renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
   }, () => {});
   fbDb.collection('crmActivities').onSnapshot(snap => {
     activities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
   }, () => {});
   fbDb.collection('crmPhoneContacts').onSnapshot(snap => {
@@ -883,6 +914,7 @@ async function fbLoadAll() {
   // E-Mails: Collection existiert erst nach dem ersten Sync-Lauf.
   fbDb.collection('crmEmails').onSnapshot(snap => {
     emails = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
   }, () => {});
@@ -1182,6 +1214,196 @@ function contactSearchScore(c, q) {
   return 0;
 }
 
+// ---------- Key Accounts: Kontakt-Ampel ----------
+// c.keyAccount = { gruppe: 'retail' | 'gastro', wochen: 4 | 5 | 6 } - nur bei Firmen.
+// Es zählt jeder Kontakt mit der Firma oder einem verknüpften Mitarbeiter; angezeigt
+// wird, mit wem. Gezählt wird nur, was VON UNS kommt.
+const KA_GRUPPEN = { retail: 'Retail Key Account', gastro: 'Gastro-Distributor' };
+const KA_ACTIVITY_TYPES = new Set(['anruf', 'email', 'meeting']);
+const DAY_MS = 86400000;
+
+function isKeyAccount(c) { return !!(c && c.keyAccount && KA_GRUPPEN[c.keyAccount.gruppe] && contactType(c) === 'firma'); }
+
+// Firma + verknüpfte Mitarbeiter: IDs, E-Mail-Adressen und wer hinter welcher Adresse steht
+function kaScope(c) {
+  const ids = new Set([c.id]);
+  const nameById = new Map();
+  const nameByAddr = new Map();
+  const addr = (e, who) => { if (e) { const a = String(e).toLowerCase().trim(); if (!nameByAddr.has(a) || who) nameByAddr.set(a, who || ''); } };
+  addr(c.email, ''); (c.weitereEmails || []).forEach(e => addr(e, ''));
+  (c.mitarbeiter || []).forEach(m => addr(m.email, m.name || ''));
+  contacts.filter(x => x.firmaKontaktId === c.id).forEach(x => {
+    ids.add(x.id); nameById.set(x.id, x.name || '');
+    addr(x.email, x.name || ''); (x.weitereEmails || []).forEach(e => addr(e, x.name || ''));
+  });
+  return { ids, addrs: new Set(nameByAddr.keys()), nameById, nameByAddr };
+}
+
+function kaTouches(c) {
+  const { ids, addrs, nameById, nameByAddr } = kaScope(c);
+  const withWho = who => who ? ` mit ${who}` : '';
+  const now = Date.now();
+  let last = null, next = null;
+  const seen = (iso, label) => {
+    const t = iso ? Date.parse(iso) : NaN;
+    if (isNaN(t)) return;
+    if (t <= now) { if (!last || t > last.t) last = { t, label }; }
+    else if (!next || t < next.t) next = { t, label };
+  };
+  if (addrs.size) emails.forEach(e => {
+    if (e.direction !== 'gesendet') return;
+    const hit = (e.participants || []).map(p => String(p).toLowerCase().trim()).filter(p => addrs.has(p));
+    if (!hit.length) return;
+    const who = hit.map(a => nameByAddr.get(a)).find(Boolean) || '';
+    seen(e.date, `Mail an ${who || (e.to || 'Firma')} «${(e.subject || '').slice(0, 45)}»`);
+  });
+  activities.forEach(a => {
+    if (ids.has(a.contactId) && KA_ACTIVITY_TYPES.has(a.typ))
+      seen(a.createdAt, { anruf: 'Anruf', email: 'E-Mail', meeting: 'Meeting' }[a.typ] + withWho(nameById.get(a.contactId)) + (a.text ? ` «${a.text.slice(0, 40)}»` : ''));
+  });
+  offers.forEach(o => { if (ids.has(o.contactId)) seen(o.datum, `Offerte ${o.nr || ''}`.trim() + withWho(nameById.get(o.contactId))); });
+  events.forEach(e => {
+    if (!ids.has(e.contactId) || e.isFollowup || e.pendingDelete || /^Follow-up:|^Key Account:/.test(e.titel || '')) return;
+    seen(e.start, `Termin${withWho(nameById.get(e.contactId))} «${(e.titel || '').slice(0, 45)}»`);
+  });
+  return { last, next };
+}
+
+function kaStatus(c) {
+  const wochen = (c.keyAccount && +c.keyAccount.wochen) || 6;
+  const { last, next } = kaTouches(c);
+  const now = Date.now();
+  const res = { wochen, last, next };
+  if (next && next.t - now <= wochen * 7 * DAY_MS) {
+    res.ampel = 'gruen'; res.text = `Termin am ${fmtDate(new Date(next.t))}`; res.score = 1e9; return res;
+  }
+  if (!last) { res.ampel = 'rot'; res.text = 'noch kein Kontakt erfasst'; res.score = -1e9; return res; }
+  const due = last.t + wochen * 7 * DAY_MS;
+  const left = Math.floor((due - now) / DAY_MS);
+  res.due = due; res.left = left; res.score = left;
+  if (left < 0) { res.ampel = 'rot'; res.text = `${-left} T. überfällig`; }
+  else if (left <= 7) { res.ampel = 'gelb'; res.text = left === 0 ? 'heute fällig' : `fällig in ${left} T.`; }
+  else { res.ampel = 'gruen'; res.text = `fällig am ${fmtDate(new Date(due))}`; }
+  return res;
+}
+
+const KA_COLORS = { gruen: 'var(--green)', gelb: 'var(--amber)', rot: 'var(--red)' };
+const KA_DOT = { gruen: '🟢', gelb: '🟡', rot: '🔴' };
+
+function kaTagHtml(c) {
+  if (!isKeyAccount(c)) return '';
+  const st = kaStatus(c);
+  return `<span class="ka-tag ${st.ampel}" title="${escapeHtml(KA_GRUPPEN[c.keyAccount.gruppe])} · alle ${st.wochen} Wochen">${KA_DOT[st.ampel]} KA · ${escapeHtml(st.text)}</span>`;
+}
+
+function kaLastText(st) {
+  if (!st.last) return 'Noch kein Kontakt von uns erfasst';
+  const days = Math.floor((Date.now() - st.last.t) / DAY_MS);
+  return `${st.last.label} · ${fmtDate(new Date(st.last.t))} (vor ${days} T.)`;
+}
+
+function renderKeyAccountBox(c) {
+  if (contactType(c) !== 'firma') {
+    const comp = c.firmaKontaktId ? contacts.find(x => x.id === c.firmaKontaktId) : null;
+    if (comp && isKeyAccount(comp)) {
+      return `<div class="ka-box">${kaTagHtml(comp)} <span style="font-size:12.5px;">läuft über die Firma
+        <a href="#" onclick="selectContact('${comp.id}'); return false;" style="color:var(--cream); text-decoration:underline;">${escapeHtml(comp.firma || comp.name || '')}</a></span>
+        <button class="small" style="margin-left:6px;" onclick="kaLogCall('${c.id}')">☎ Anruf notieren</button></div>`;
+    }
+    return '';  // Key Account nur bei Firmen
+  }
+  const ka = c.keyAccount || {};
+  const st = isKeyAccount(c) ? kaStatus(c) : null;
+  return `<div class="ka-box">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <span>Key Account:</span>
+      <select onchange="setKeyAccount('${c.id}', this.value, null)">
+        <option value="">nein</option>
+        ${Object.entries(KA_GRUPPEN).map(([k, l]) => `<option value="${k}" ${ka.gruppe === k ? 'selected' : ''}>${l}</option>`).join('')}
+      </select>
+      ${isKeyAccount(c) ? `<span>Kontakt alle</span>
+      <select onchange="setKeyAccount('${c.id}', null, this.value)">
+        ${[4, 5, 6].map(w => `<option value="${w}" ${(+ka.wochen || 6) === w ? 'selected' : ''}>${w} Wochen</option>`).join('')}
+      </select>` : ''}
+    </div>
+    ${st ? `<div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      ${kaTagHtml(c)}
+      <span style="font-size:12.5px;">Letzter Kontakt: ${escapeHtml(kaLastText(st))}</span>
+      <button class="small" onclick="kaLogCall('${c.id}')">☎ Anruf notieren</button>
+    </div>
+    <div style="font-size:11.5px; color:var(--cream-dim); margin-top:4px;">Zählt jeder Kontakt mit der Firma oder einem verknüpften Mitarbeiter. Anruf mit einer Person am besten bei ihr notieren.</div>` : ''}
+  </div>`;
+}
+
+async function setKeyAccount(contactId, gruppe, wochen) {
+  if (!fbDb) return;
+  const c = contacts.find(x => x.id === contactId);
+  if (!c) return;
+  let value;
+  if (gruppe === '') value = firebase.firestore.FieldValue.delete();
+  else value = { gruppe: gruppe || (c.keyAccount && c.keyAccount.gruppe) || 'retail', wochen: +(wochen || (c.keyAccount && c.keyAccount.wochen) || 6) };
+  await fbDb.collection('crmContacts').doc(contactId).update({ keyAccount: value, lastEditedBy: currentUserName || null });
+  toast(gruppe === '' ? 'Kein Key Account mehr.' : 'Key Account gespeichert.');
+}
+
+async function kaLogCall(contactId) {
+  if (!fbDb) return;
+  const text = prompt('Telefonat – kurze Notiz (optional):', '');
+  if (text === null) return;
+  await fbDb.collection('crmActivities').add({
+    contactId, typ: 'anruf', text: text.trim() || 'Telefonat', attachments: [],
+    createdAt: new Date().toISOString(), createdBy: currentUserName || null,
+  });
+  touchContact(contactId);
+  toast('Anruf notiert.');
+}
+
+let kaFilter = 'alle';
+function setKaFilter(f) { kaFilter = f; renderKeyAccounts(); }
+
+function renderKeyAccounts() {
+  const listEl = document.getElementById('kaList');
+  if (!listEl) return;
+  const all = contacts.filter(isKeyAccount).map(c => ({ c, st: kaStatus(c) }));
+  const counts = { rot: 0, gelb: 0, gruen: 0 };
+  all.forEach(x => counts[x.st.ampel]++);
+  document.getElementById('countKeyAccounts').textContent = counts.rot + counts.gelb;
+  document.getElementById('kaSummary').innerHTML = `
+    <div class="sort-toggle">
+      ${[['alle', 'Alle'], ['retail', 'Retail'], ['gastro', 'Gastro']].map(([k, l]) =>
+        `<button class="${kaFilter === k ? 'active' : ''}" onclick="setKaFilter('${k}')">${l}</button>`).join('')}
+    </div>
+    <span>🔴 <b>${counts.rot}</b> überfällig</span><span>🟡 <b>${counts.gelb}</b> bald fällig</span><span>🟢 <b>${counts.gruen}</b> im Rhythmus</span>`;
+  const shown = all.filter(x => kaFilter === 'alle' || x.c.keyAccount.gruppe === kaFilter).sort((a, b) => a.st.score - b.st.score);
+  if (!shown.length) {
+    listEl.innerHTML = `<div class="empty-state">Noch keine Key Accounts.<div class="hint">Im Kontakt unter «Key Account» Retail oder Gastro wählen.</div></div>`;
+    return;
+  }
+  const groups = kaFilter === 'alle' ? Object.keys(KA_GRUPPEN) : [kaFilter];
+  listEl.innerHTML = groups.map(g => {
+    const rows = shown.filter(x => x.c.keyAccount.gruppe === g);
+    if (!rows.length) return '';
+    return `<h3 style="font-size:13px; color:var(--gold-soft); margin:14px 0 8px;">${KA_GRUPPEN[g]} <span class="count">${rows.length}</span></h3>` + rows.map(({ c, st }) => {
+      const mail = followupContactEmail(c);
+      return `<div class="ka-row" style="--ka:${KA_COLORS[st.ampel]};">
+        <span class="dot"></span>
+        <div style="min-width:0;">
+          <div class="ka-name" onclick="openFollowupContact('${c.id}')">${escapeHtml(c.firma || c.name || '')}</div>
+          <div class="ka-sub">alle ${st.wochen} Wochen · ${contacts.filter(x => x.firmaKontaktId === c.id).length} MA verknüpft</div>
+        </div>
+        <div class="ka-mid" style="min-width:0;">
+          <div style="font-size:12.5px; font-weight:600; color:${KA_COLORS[st.ampel]};">${escapeHtml(st.text)}</div>
+          <div class="ka-sub" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(kaLastText(st))}</div>
+        </div>
+        <div class="ka-actions">
+          ${mail ? `<button class="small" onclick="location.href='mailto:${encodeURI(mail)}'">✉ Mail</button>` : ''}
+          <button class="small" onclick="kaLogCall('${c.id}')">☎ Anruf notieren</button>
+        </div>
+      </div>`;
+    }).join('');
+  }).join('');
+}
+
 let contactSort = 'abc';
 try { contactSort = localStorage.getItem('crmContactSort') || 'abc'; } catch (e) {}
 
@@ -1250,6 +1472,7 @@ function renderContacts() {
         ${c.firma && c.firma.trim().toLowerCase() !== (c.name || '').trim().toLowerCase() ? `<div class="firma">${escapeHtml(c.firma)}</div>` : ''}
         <div class="card-meta">
           ${typeTagHtml(c)}
+          ${kaTagHtml(c)}
           <span class="stage-pill">${escapeHtml(getStageLabel(c.status))}</span>
           <span class="card-sub">${escapeHtml([c.ort, relativeDays(c.lastActivityAt)].filter(Boolean).join(' · '))}</span>
         </div>
@@ -1507,6 +1730,7 @@ function renderContactDetailInner(id) {
       </select>
     </div>
     <div class="field" style="margin-top:10px;">${renderBrandGrid(c)}</div>
+    <div class="field">${renderKeyAccountBox(c)}</div>
     <div class="field">
       ${contactType(c) === 'unklar' ? `<div style="color:var(--amber); margin-bottom:4px;">Firma «${escapeHtml(c.firma)}» eingetragen, aber nicht verknüpft. <a href="#" onclick="openCompanyLinkModal('${c.id}'); return false;" style="color:var(--amber); text-decoration:underline;">Jetzt verknüpfen</a> · <a href="#" onclick="setContactTypeQuick('${c.id}','firma'); return false;" style="color:var(--amber); text-decoration:underline;">ist selbst eine Firma</a></div>` : ''}
       🏢 ${linkedCompany
@@ -2016,8 +2240,8 @@ function openFollowupActivity(contactId) {
 function renderFollowups() {
   const openEl = document.getElementById('followupListOpen');
   if (!openEl) return;
-  const fu = tasks.filter(t => t.followupEventId);
-  const open = fu.filter(t => !t.erledigt).sort((a, b) => (a.followupEventDate || '').localeCompare(b.followupEventDate || ''));
+  const fu = tasks.filter(t => t.followupEventId || t.keyAccountId);
+  const open = fu.filter(t => !t.erledigt).sort((a, b) => (a.followupEventDate || a.kaDue || '').localeCompare(b.followupEventDate || b.kaDue || ''));
   const done = fu.filter(t => t.erledigt).sort((a, b) => (b.erledigtAm || b.createdAt || '').localeCompare(a.erledigtAm || a.createdAt || '')).slice(0, 15);
   document.getElementById('countFollowups').textContent = open.length;
 
@@ -2030,15 +2254,18 @@ function renderFollowups() {
     const c = contacts.find(x => x.id === t.contactId);
     const name = c ? (c.firma || c.name || '') : '';
     const mail = followupContactEmail(c);
-    const days = daysSince(t.followupEventDate);
-    const subject = encodeURIComponent(`Unser Treffen vom ${fmtDate(t.followupEventDate)}`);
+    const isKa = !!t.keyAccountId;
+    const days = daysSince(isKa ? t.kaLastTouch : t.followupEventDate);
+    const subject = encodeURIComponent(isKa ? 'Kurzes Update von TrendSENSE' : `Unser Treffen vom ${fmtDate(t.followupEventDate)}`);
     return `
     <div class="task-item" style="align-items:flex-start; flex-direction:column; gap:6px;">
       <div style="display:flex; justify-content:space-between; width:100%; gap:8px;">
         <a href="#" onclick="openFollowupContact('${t.contactId}'); return false;" style="flex:1; color:var(--gold-soft); font-weight:600;">${escapeHtml(name || 'Kontakt')}</a>
         ${days !== null ? `<span class="task-meta ${days >= 10 ? 'overdue' : ''}" style="white-space:nowrap;">seit ${days} Tagen</span>` : ''}
       </div>
-      <div class="task-meta">Termin: ${escapeHtml(t.followupEventTitle || '')} · ${fmtDate(t.followupEventDate)}</div>
+      <div class="task-meta">${isKa
+        ? `🔑 Key Account · letzter Kontakt: ${escapeHtml(t.kaLastLabel || 'keiner erfasst')} · Frist ${fmtDate(t.kaDue)}`
+        : `Termin: ${escapeHtml(t.followupEventTitle || '')} · ${fmtDate(t.followupEventDate)}`}</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         ${mail ? `<button class="small" onclick="location.href='mailto:${encodeURI(mail)}?subject=${subject}'">✉ Mail schreiben</button>` : ''}
         <button class="small" onclick="openFollowupActivity('${t.contactId}')">☎ Anruf/Aktivität erfassen</button>
@@ -2054,7 +2281,7 @@ function renderFollowups() {
     <div class="task-item done">
       <input type="checkbox" checked onchange="toggleTask('${t.id}', this.checked)" title="Wieder öffnen">
       <div style="flex:1;">
-        <div class="task-text">${escapeHtml(name)} — ${escapeHtml(t.followupEventTitle || '')}</div>
+        <div class="task-text">${escapeHtml(name)} — ${escapeHtml(t.keyAccountId ? 'Key Account' : (t.followupEventTitle || ''))}</div>
         <div class="task-meta">${t.autoErledigt ? 'Automatisch: ' + escapeHtml(t.autoErledigt) : 'Manuell erledigt'}</div>
       </div>
     </div>`;
