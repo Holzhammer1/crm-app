@@ -400,6 +400,12 @@
       <select id="bulkStatusSelect">
         <option value="">Status setzen…</option>
       </select>
+      <select id="bulkKaSelect" onchange="bulkSetKeyAccount(this.value); this.value='';" style="width:auto;">
+        <option value="">Key Account setzen…</option>
+        <option value="retail">Retail Key Account (alle 4 Wochen)</option>
+        <option value="gastro">Gastro-Distributor (alle 4 Wochen)</option>
+        <option value="keiner">kein Key Account</option>
+      </select>
       <button id="btnBulkDelete" style="color:#e07a7a;">Löschen</button>
       <button id="btnBulkCancel">Abbrechen</button>
     </div>
@@ -1346,6 +1352,44 @@ function renderKeyAccountBox(c) {
   </div>`;
 }
 
+// Ampel gross oben im Kontakt (bei Mitarbeitern die der Firma)
+function kaHeaderHtml(c) {
+  const comp = contactType(c) === 'mitarbeiter' && c.firmaKontaktId ? contacts.find(x => x.id === c.firmaKontaktId) : c;
+  if (!comp) return '';
+  if (isKeyAccount(comp)) {
+    const st = kaStatus(comp);
+    return `<span class="ka-tag ${st.ampel}" style="font-size:12.5px; padding:4px 12px;" title="${escapeHtml(kaLastText(st))}">
+      ${KA_DOT[st.ampel]} ${escapeHtml(st.text)} · letzter Kontakt ${st.last ? 'vor ' + Math.floor((Date.now() - st.last.t) / DAY_MS) + ' T.' : '–'}</span>`;
+  }
+  if (comp === c && contactType(c) === 'firma' && !isKaweaCustomer(c)) {
+    return `<a href="#" onclick="setKeyAccount('${c.id}', 'retail', 4); return false;" style="font-size:11.5px; color:var(--cream-dim);">+ als Key Account führen</a>`;
+  }
+  return '';
+}
+
+async function bulkSetKeyAccount(gruppe) {
+  if (!fbDb || bulkSelectedIds.size === 0 || !gruppe) return;
+  const ids = Array.from(bulkSelectedIds).filter(id => {
+    const c = contacts.find(x => x.id === id);
+    return c && contactType(c) === 'firma' && !isKaweaCustomer(c);
+  });
+  const skipped = bulkSelectedIds.size - ids.length;
+  for (let i = 0; i < ids.length; i += 400) {
+    const batch = fbDb.batch();
+    ids.slice(i, i + 400).forEach(id => {
+      const c = contacts.find(x => x.id === id);
+      batch.update(fbDb.collection('crmContacts').doc(id), {
+        keyAccount: gruppe === 'keiner' ? firebase.firestore.FieldValue.delete()
+          : { gruppe, wochen: +((c.keyAccount && c.keyAccount.wochen) || 4) },
+      });
+    });
+    await batch.commit();
+  }
+  toast(`${ids.length} Firma(n) ${gruppe === 'keiner' ? 'sind keine Key Accounts mehr' : 'als ' + KA_GRUPPEN[gruppe] + ' gesetzt'}`
+    + (skipped ? ` – ${skipped} übersprungen (keine Firma oder kawea-Kunde)` : '') + '.');
+  setBulkMode(false);
+}
+
 async function setKeyAccount(contactId, gruppe, wochen) {
   if (!fbDb) return;
   const c = contacts.find(x => x.id === contactId);
@@ -1832,7 +1876,7 @@ function renderContactDetailInner(id) {
         <div>
           <p class="name">${escapeHtml(c.name || '')}</p>
           ${c.firma ? `<p class="firma">${escapeHtml(c.firma)}</p>` : ''}
-          <div style="margin-top:-8px; margin-bottom:10px;">${typeTagHtml(c)}</div>
+          <div style="margin-top:-8px; margin-bottom:10px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">${typeTagHtml(c)}${kaHeaderHtml(c)}</div>
         </div>
       </div>
       <div style="display:flex; gap:8px;">
