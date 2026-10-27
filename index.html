@@ -202,6 +202,28 @@
   .avatar.pipe.has-logo { background: #fff; border-color: var(--anthracite-line); }
   .avatar.pipe img { padding: 4px; box-sizing: border-box; }
 
+  /* Marken-Status pro Kontakt (Kunde / Prospect) */
+  .brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 4px 0 6px; }
+  .brand-tile {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left;
+    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--anthracite-line);
+    background: var(--anthracite-800); color: var(--cream); cursor: pointer; font-size: 12.5px; line-height: 1.25;
+  }
+  .brand-tile .bt-abk { font-weight: 700; letter-spacing: .03em; }
+  .brand-tile .bt-name { font-size: 10.5px; color: var(--cream-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .brand-tile .bt-state { font-size: 10.5px; font-weight: 600; color: var(--cream-dim); }
+  .brand-tile:hover { border-color: var(--gold); color: var(--cream); }
+  .brand-tile.kunde { background: var(--gold); border-color: var(--gold); color: #fff; }
+  .brand-tile.kunde .bt-name, .brand-tile.kunde .bt-state { color: rgba(255,255,255,0.88); }
+  .brand-tile.prospect { background: color-mix(in srgb, var(--gold) 10%, var(--anthracite-800)); border: 1.5px dashed var(--gold); }
+  .brand-tile.prospect .bt-state { color: var(--gold-soft); }
+  .brand-legend { font-size: 11px; color: var(--cream-dim); margin-bottom: 2px; }
+  .brand-badges { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+  .brand-badge { font-size: 9.5px; font-weight: 700; letter-spacing: .03em; padding: 1px 5px; border-radius: 4px; line-height: 1.4; }
+  .brand-badge.kunde { background: var(--gold); color: #fff; border: 1px solid var(--gold); }
+  .brand-badge.prospect { color: var(--gold-soft); border: 1px dashed var(--gold); }
+  #brandFilter { width: auto; max-width: 210px; padding: 8px 10px; font-size: 12.5px; flex: none; }
+
   .contact-card-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px; margin-bottom: 20px;
@@ -329,6 +351,7 @@
         <button data-sort="abc" onclick="setContactSort('abc')">A–Z</button>
         <button data-sort="recent" onclick="setContactSort('recent')">Zuletzt aktiv</button>
       </div>
+      <select id="brandFilter" onchange="setBrandFilter(this.value)" title="Nach Marke filtern"></select>
       <button id="btnBulkMode">Mehrere auswählen</button>
       <button class="primary" id="btnNewContact">+ Kontakt</button>
     </div>
@@ -803,6 +826,7 @@ async function fbLoadAll() {
     renderFollowups();
     renderPhoneLinkedToCompany();
     if (selectedContactId) renderContactDetail(selectedContactId);
+    scheduleAutoTagBrands();
   });
   fbDb.collection('crmTasks').orderBy('faelligAm').onSnapshot(snap => {
     tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -815,10 +839,12 @@ async function fbLoadAll() {
   fbDb.collection('crmOffers').onSnapshot(snap => {
     offers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (selectedContactId) renderContactDetail(selectedContactId);
+    scheduleAutoTagBrands();
   }, () => {});
   fbDb.collection('crmInvoices').onSnapshot(snap => {
     invoices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (selectedContactId) renderContactDetail(selectedContactId);
+    scheduleAutoTagBrands();
   }, () => {});
   fbDb.collection('crmEvents').onSnapshot(snap => {
     events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -838,12 +864,14 @@ async function fbLoadAll() {
   fbDb.collection('crmEmails').onSnapshot(snap => {
     emails = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (selectedContactId) renderContactDetail(selectedContactId);
+    scheduleAutoTagBrands();
   }, () => {});
   // Bestellungen/AB/Rechnungen: Collection existiert erst nach dem ersten Lauf von order_docs_sync.py.
   fbDb.collection('crmOrderDocs').onSnapshot(snap => {
     orderDocs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => !d.dismissed);
     renderReviewList();
     if (selectedContactId) renderContactDetail(selectedContactId);
+    scheduleAutoTagBrands();
   }, () => {});
 }
 
@@ -852,6 +880,229 @@ let bulkMode = false;
 let bulkSelectedIds = new Set();
 
 // Sortierung der Kontaktkarten: "abc" (Standard, mit Buchstaben-Trennern) oder "recent"
+// ---------- Marken-Status (Kunde / Prospect pro Marke) ----------
+const BRANDS = [
+  { id: 'cerve',       abk: 'CER',    name: 'Cerve / Vidivi' },
+  { id: 'seltmann',    abk: 'SEL',    name: 'Seltmann Weiden' },
+  { id: 'mepra',       abk: 'MEP',    name: 'Mepra' },
+  { id: 'vsm',         abk: 'VSM',    name: 'Vidrios San Miguel' },
+  { id: 'costaverde',  abk: 'CVE',    name: 'Costa Verde' },
+  { id: 'tognana',     abk: 'TOG',    name: 'Tognana' },
+  { id: 'zafferano',   abk: 'ZAF',    name: 'Zafferano' },
+  { id: 'guzzini',     abk: 'GUZ',    name: 'Guzzini' },
+  { id: 'risoli',      abk: 'RIS',    name: 'Risoli' },
+  { id: 'lilienstahl', abk: 'LIL',    name: 'Lilienstahl' },
+  { id: 'bormioli',    abk: 'BOR',    name: 'Bormioli' },
+  { id: 'zirben',      abk: 'ZIR',    name: 'Zirbenfamilie' },
+  { id: 'tskaw',       abk: 'TS/KAW', name: 'Produkte TS/KAW' },
+];
+const BRAND_STATES = { kunde: 'Kunde', prospect: 'Prospect' };
+// Stichwörter für die automatische Erkennung (Postfach, Betreff, Dateiname, Absender, Bexio-Titel)
+const BRAND_KEYWORDS = {
+  cerve: ['cerve', 'vidivi'],
+  seltmann: ['seltmann'],
+  mepra: ['mepra'],
+  vsm: ['san miguel', 'sanmiguel', 'vidrios'],
+  costaverde: ['costa verde', 'costaverde', 'costa-verde'],
+  tognana: ['tognana'],
+  zafferano: ['zafferano'],
+  guzzini: ['guzzini'],
+  risoli: ['risoli'],
+  lilienstahl: ['lilienstahl'],
+  bormioli: ['bormioli'],
+  zirben: ['zirben'],
+};
+
+function brandState(c, brandId) {
+  const v = c && c.marken ? c.marken[brandId] : null;
+  return v === 'kunde' || v === 'prospect' ? v : null;
+}
+
+function renderBrandGrid(c) {
+  return `
+    <div class="brand-legend">Marken – Klick wechselt: leer → Kunde → Prospect → leer</div>
+    <div class="brand-grid">
+      ${BRANDS.map(b => {
+        const st = brandState(c, b.id);
+        const auto = st && c.markenAuto && c.markenAuto[b.id] && !(c.markenManuell || {})[b.id];
+        return `<button type="button" class="brand-tile${st ? ' ' + st : ''}" title="${escapeHtml(b.name)}${auto ? ' – automatisch erkannt: ' + escapeHtml(c.markenAuto[b.id]) : ''}"
+          onclick="cycleBrandState('${c.id}', '${b.id}')">
+          <span class="bt-abk">${escapeHtml(b.abk)}</span>
+          <span class="bt-name">${escapeHtml(b.name)}</span>
+          <span class="bt-state">${st ? (st === 'kunde' ? '✓ Kunde' : '◎ Prospect') + (auto ? ' · auto' : '') : '–'}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderBrandBadges(c) {
+  const list = BRANDS.map(b => ({ b, st: brandState(c, b.id) })).filter(x => x.st);
+  if (!list.length) return '';
+  // Kunden zuerst, dann Prospects
+  list.sort((x, y) => (x.st === y.st ? 0 : x.st === 'kunde' ? -1 : 1));
+  return `<div class="brand-badges">${list.map(({ b, st }) =>
+    `<span class="brand-badge ${st}" title="${escapeHtml(b.name)}: ${BRAND_STATES[st]}">${escapeHtml(b.abk)}</span>`).join('')}</div>`;
+}
+
+async function cycleBrandState(contactId, brandId) {
+  if (!fbDb) return;
+  const c = contacts.find(x => x.id === contactId);
+  if (!c) return;
+  const cur = brandState(c, brandId);
+  const next = cur === null ? 'kunde' : cur === 'kunde' ? 'prospect' : null;
+  // sofort anzeigen, Firestore-Snapshot bestätigt danach
+  c.marken = Object.assign({}, c.marken || {});
+  if (next) c.marken[brandId] = next; else delete c.marken[brandId];
+  c.markenManuell = Object.assign({}, c.markenManuell || {}, { [brandId]: true });
+  renderContactDetail(contactId);
+  renderContacts();
+  try {
+    await fbDb.collection('crmContacts').doc(contactId).update({
+      ['marken.' + brandId]: next ? next : firebase.firestore.FieldValue.delete(),
+      // von Hand gesetzt -> die automatische Erkennung fasst diese Marke nicht mehr an
+      ['markenManuell.' + brandId]: true,
+      lastActivityAt: new Date().toISOString(),
+      lastEditedBy: currentUserName || null,
+    });
+  } catch (e) {
+    console.error(e);
+    toast('Marken-Status konnte nicht gespeichert werden.');
+  }
+}
+
+// Automatische Erkennung:
+//  - Bestellung/AB/Rechnung-PDFs (crmOrderDocs) und Bexio-Rechnungen -> Kunde
+//  - E-Mails (Betreff/Postfach/Absender) und Bexio-Offerten -> Prospect (nur wenn noch leer)
+//  - nie herabstufen, nie überschreiben, was von Hand gesetzt wurde
+function brandsInText(text) {
+  const t = (text || '').toLowerCase();
+  if (!t) return [];
+  return Object.keys(BRAND_KEYWORDS).filter(id => BRAND_KEYWORDS[id].some(k => t.includes(k)));
+}
+
+function contactAddressSet(c) {
+  const set = new Set();
+  const add = e => { if (e) set.add(String(e).toLowerCase().trim()); };
+  add(c.email);
+  (c.weitereEmails || []).forEach(add);
+  (c.mitarbeiter || []).forEach(m => add(m.email));
+  contacts.filter(x => x.firmaKontaktId === c.id).forEach(x => add(x.email));
+  return set;
+}
+
+// Lieferanten-Kontakte (z.B. @seltmann.com) nicht als Kunde ihrer eigenen Marke markieren
+function contactIsBrandSupplier(c, brandId) {
+  const domains = [...contactAddressSet(c)].map(e => e.split('@')[1] || '').join(' ') + ' ' + (c.website || '') + ' ' + (c.firma || '');
+  return brandsInText(domains).includes(brandId);
+}
+
+let autoTagTimer = null;
+let autoTagRunning = false;
+function scheduleAutoTagBrands() {
+  clearTimeout(autoTagTimer);
+  autoTagTimer = setTimeout(autoTagBrands, 2500);
+}
+
+async function autoTagBrands() {
+  if (!fbDb || autoTagRunning || !contacts.length) return;
+  autoTagRunning = true;
+  try {
+    // contactId -> { brandId: {st, src} }
+    const found = {};
+    const note = (cid, bid, st, src) => {
+      if (!cid) return;
+      const f = (found[cid] = found[cid] || {});
+      if (!f[bid] || (f[bid].st === 'prospect' && st === 'kunde')) f[bid] = { st, src };
+    };
+    const docLabel = { bestellung: 'Bestellung', ab: 'AB', rechnung: 'Rechnung' };
+    orderDocs.forEach(d => {
+      if (!d.contactId || !docLabel[d.docType]) return;
+      brandsInText([d.mailbox, d.subject, d.filename, d.from].join(' '))
+        .forEach(bid => note(d.contactId, bid, 'kunde', docLabel[d.docType] + (d.filename ? ' ' + d.filename : '')));
+    });
+    const bexioText = x => { try { return JSON.stringify(x); } catch (e) { return ''; } };
+    invoices.forEach(i => brandsInText(bexioText(i)).forEach(bid => note(i.contactId, bid, 'kunde', 'Bexio-Rechnung' + (i.titel || i.title ? ' ' + (i.titel || i.title) : ''))));
+    offers.forEach(o => brandsInText(bexioText(o)).forEach(bid => note(o.contactId, bid, 'prospect', 'Bexio-Offerte' + (o.titel || o.title ? ' ' + (o.titel || o.title) : ''))));
+
+    if (emails.length) {
+      const addrIndex = new Map(); // E-Mail-Adresse -> Kontakt-IDs
+      contacts.forEach(c => contactAddressSet(c).forEach(a => {
+        if (!addrIndex.has(a)) addrIndex.set(a, new Set());
+        addrIndex.get(a).add(c.id);
+      }));
+      emails.forEach(e => {
+        const bids = brandsInText([e.mailbox, e.subject].join(' '));
+        if (!bids.length) return;
+        const cids = new Set();
+        (e.participants || []).forEach(p => (addrIndex.get(String(p).toLowerCase().trim()) || []).forEach(id => cids.add(id)));
+        cids.forEach(cid => bids.forEach(bid => note(cid, bid, 'prospect', 'E-Mail «' + (e.subject || '') + '»')));
+      });
+    }
+
+    const updates = [];
+    Object.entries(found).forEach(([cid, brands]) => {
+      const c = contacts.find(x => x.id === cid);
+      if (!c) return;
+      const upd = {};
+      Object.entries(brands).forEach(([bid, { st, src }]) => {
+        if ((c.markenManuell || {})[bid]) return;
+        if (contactIsBrandSupplier(c, bid)) return;
+        const cur = brandState(c, bid);
+        if (cur === 'kunde' || cur === st) return;
+        upd['marken.' + bid] = st;
+        upd['markenAuto.' + bid] = src.slice(0, 140);
+      });
+      if (Object.keys(upd).length) updates.push([cid, upd]);
+    });
+    for (let i = 0; i < updates.length; i += 400) {
+      const batch = fbDb.batch();
+      updates.slice(i, i + 400).forEach(([cid, upd]) => batch.update(fbDb.collection('crmContacts').doc(cid), upd));
+      await batch.commit();
+    }
+    if (updates.length) console.log(`Marken automatisch gesetzt bei ${updates.length} Kontakt(en).`);
+  } catch (e) {
+    console.error('Marken-Erkennung fehlgeschlagen', e);
+  } finally {
+    autoTagRunning = false;
+  }
+}
+
+let brandFilter = '';
+try { brandFilter = localStorage.getItem('crmBrandFilter') || ''; } catch (e) {}
+
+function setBrandFilter(v) {
+  brandFilter = v || '';
+  try { localStorage.setItem('crmBrandFilter', brandFilter); } catch (e) {}
+  renderContacts();
+}
+
+function fillBrandFilter() {
+  const sel = document.getElementById('brandFilter');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Alle Marken</option>' +
+    '<option value="any:kunde">Kunde irgendeiner Marke</option>' +
+    '<option value="any:prospect">Prospect irgendeiner Marke</option>' +
+    BRANDS.map(b => `<optgroup label="${escapeHtml(b.abk + ' – ' + b.name)}">
+      <option value="${b.id}:kunde">${escapeHtml(b.abk)} – Kunde</option>
+      <option value="${b.id}:prospect">${escapeHtml(b.abk)} – Prospect</option>
+      <option value="${b.id}:beide">${escapeHtml(b.abk)} – Kunde oder Prospect</option>
+      <option value="${b.id}:ohne">${escapeHtml(b.abk)} – noch nichts</option>
+    </optgroup>`).join('');
+  if (![...sel.options].some(o => o.value === brandFilter)) brandFilter = '';
+  sel.value = brandFilter;
+}
+
+function matchesBrandFilter(c) {
+  if (!brandFilter) return true;
+  const [bid, mode] = brandFilter.split(':');
+  if (bid === 'any') return BRANDS.some(b => brandState(c, b.id) === mode);
+  const st = brandState(c, bid);
+  if (mode === 'kunde' || mode === 'prospect') return st === mode;
+  if (mode === 'beide') return !!st;
+  if (mode === 'ohne') return !st;
+  return true;
+}
+
 let contactSort = 'abc';
 try { contactSort = localStorage.getItem('crmContactSort') || 'abc'; } catch (e) {}
 
@@ -875,7 +1126,8 @@ function renderContacts() {
   const grid = document.getElementById('contactCardGrid');
   document.querySelectorAll('#contactSortToggle button').forEach(b => b.classList.toggle('active', b.dataset.sort === contactSort));
   let filtered = contacts.filter(c =>
-    !q || (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q)
+    (!q || (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q))
+    && matchesBrandFilter(c)
   );
   if (contactSort === 'abc') {
     filtered = [...filtered].sort((a, b) => {
@@ -888,7 +1140,7 @@ function renderContacts() {
   document.getElementById('countContacts').textContent = contacts.length;
 
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Keine Kontakte gefunden.</div>`;
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Keine Kontakte gefunden${brandFilter ? ' für diesen Marken-Filter' : ''}.</div>`;
     return;
   }
   let lastLetter = null;
@@ -909,6 +1161,7 @@ function renderContacts() {
           <span class="stage-pill">${escapeHtml(getStageLabel(c.status))}</span>
           <span class="card-sub">${escapeHtml([c.ort, relativeDays(c.lastActivityAt)].filter(Boolean).join(' · '))}</span>
         </div>
+        ${renderBrandBadges(c)}
       </div>
     </div>`;
   }).join('');
@@ -1154,6 +1407,7 @@ function renderContactDetailInner(id) {
         ${PIPELINE_STAGES.map(s => `<option value="${s.id}" ${(c.status || 'neu') === s.id ? 'selected' : ''}>${s.label}</option>`).join('')}
       </select>
     </div>
+    <div class="field" style="margin-top:10px;">${renderBrandGrid(c)}</div>
     <div class="field">
       🏢 ${linkedCompany
         ? `Gehört zu <a href="#" onclick="selectContact('${linkedCompany.id}'); return false;" style="color:var(--cream); text-decoration:underline;"><b>${escapeHtml(linkedCompany.name)}</b></a>
@@ -2881,6 +3135,7 @@ function setupContactSearch(inputId, dropdownId, filtersGrid) {
   });
 }
 setupContactSearch('contactSearch', 'contactSearchDropdown', true);
+fillBrandFilter();
 setupContactSearch('contactSearchBottom', 'contactSearchBottomDropdown', false);
 document.getElementById('btnNewContact').addEventListener('click', () => openContactModal(null));
 
