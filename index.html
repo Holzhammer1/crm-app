@@ -271,6 +271,14 @@
   .ka-summary { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--cream-dim); margin: -4px 0 14px; }
   .ka-summary b { color: var(--cream); }
 
+  /* Umsatz +/- aus Bexio-Rechnungen */
+  .rev-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 6px 0 4px; }
+  .rev-cell { border: 1px solid var(--anthracite-line); border-radius: 10px; padding: 8px 12px; }
+  .rev-cell .rl { font-size: 11px; color: var(--cream-dim); }
+  .rev-cell .rv { font-size: 16px; font-weight: 600; color: var(--cream); font-variant-numeric: tabular-nums; }
+  .rev-cell .rc { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rev-up { color: var(--green); } .rev-down { color: var(--red); } .rev-flat { color: var(--cream-dim); }
+
   /* Kontakt-Typ: Firma / Mitarbeiter / Privat */
   .avatar.card.person { border-radius: 50%; }
   .type-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
@@ -892,6 +900,7 @@ async function fbLoadAll() {
   }, () => {});
   fbDb.collection('crmInvoices').onSnapshot(snap => {
     invoices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
   }, () => {});
@@ -922,6 +931,7 @@ async function fbLoadAll() {
   fbDb.collection('crmOrderDocs').onSnapshot(snap => {
     orderDocs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => !d.dismissed);
     renderReviewList();
+    renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
   }, () => {});
@@ -1222,7 +1232,7 @@ const KA_GRUPPEN = { retail: 'Retail Key Account', gastro: 'Gastro-Distributor' 
 const KA_ACTIVITY_TYPES = new Set(['anruf', 'email', 'meeting']);
 const DAY_MS = 86400000;
 
-function isKeyAccount(c) { return !!(c && c.keyAccount && KA_GRUPPEN[c.keyAccount.gruppe] && contactType(c) === 'firma'); }
+function isKeyAccount(c) { return !!(c && c.keyAccount && KA_GRUPPEN[c.keyAccount.gruppe] && contactType(c) === 'firma' && !isKaweaCustomer(c)); }
 
 // Firma + verknüpfte Mitarbeiter: IDs, E-Mail-Adressen und wer hinter welcher Adresse steht
 function kaScope(c) {
@@ -1312,6 +1322,7 @@ function renderKeyAccountBox(c) {
     }
     return '';  // Key Account nur bei Firmen
   }
+  if (isKaweaCustomer(c)) return '';  // kawea-Kunden (Kleinkunden) sind keine Key Accounts
   const ka = c.keyAccount || {};
   const st = isKeyAccount(c) ? kaStatus(c) : null;
   return `<div class="ka-box">
@@ -1390,6 +1401,7 @@ function renderKeyAccounts() {
         <div style="min-width:0;">
           <div class="ka-name" onclick="openFollowupContact('${c.id}')">${escapeHtml(c.firma || c.name || '')}</div>
           <div class="ka-sub">alle ${st.wochen} Wochen · ${contacts.filter(x => x.firmaKontaktId === c.id).length} MA verknüpft</div>
+          ${(() => { const st = revenueStats(c); return Object.entries(st.byCur).map(([cur, r]) => `<div class="ka-sub">Umsatz ${new Date().getFullYear()}: ${fmtMoney(r.ytd, cur)} ${revenueDeltaHtml(r.ytd, r.ytdPrev, cur)}</div>`).join(''); })()}
         </div>
         <div class="ka-mid" style="min-width:0;">
           <div style="font-size:12.5px; font-weight:600; color:${KA_COLORS[st.ampel]};">${escapeHtml(st.text)}</div>
@@ -1402,6 +1414,126 @@ function renderKeyAccounts() {
       </div>`;
     }).join('');
   }).join('');
+}
+
+// ---------- Umsatz +/- pro Kunde ----------
+// Quellen: Rechnungen der Hersteller aus den Postfächern (crmOrderDocs, Betrag aus dem PDF
+// gelesen oder von Hand korrigiert) und bei den kawea-Kunden die kawea-Rechnungen aus Bexio.
+// Firma: eigene Rechnungen + die ihrer verknüpften Mitarbeiter. Pro Währung getrennt.
+function revenueIds(c) {
+  const ids = new Set([c.id]);
+  if (contactType(c) === 'firma') contacts.filter(x => x.firmaKontaktId === c.id).forEach(x => ids.add(x.id));
+  return ids;
+}
+
+function isKaweaCustomer(c) {
+  const b = (c && c.bexioIds) || {};
+  return !!b.kawea && !b.trendsense;
+}
+
+function revenueItems(c) {
+  const ids = revenueIds(c);
+  const items = [];
+  orderDocs.forEach(d => {
+    if (d.docType !== 'rechnung' || !ids.has(d.contactId)) return;
+    const amt = typeof d.betrag === 'number' ? d.betrag : parseFloat(d.betrag);
+    if (!isFinite(amt)) return;
+    const brand = brandsInText([d.mailbox, d.sender, d.subject, d.filename].join(' '))[0] || null;
+    items.push({ amt, cur: d.waehrung || 'EUR', date: d.rechnungsDatum || d.mailDatum || (d.createdAt || '').slice(0, 10), brand, src: 'hersteller' });
+  });
+  invoices.forEach(i => {
+    if (i.bexioFirma !== 'kawea' || !ids.has(i.contactId) || /entwurf|storn/i.test(i.status || '')) return;
+    const amt = parseFloat(i.betrag);
+    if (!isFinite(amt)) return;
+    items.push({ amt, cur: 'CHF', date: String(i.datum || '').slice(0, 10), brand: 'kawea', src: 'kawea' });
+  });
+  return items;
+}
+
+function revenueStats(c) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const md = (now.getMonth() + 1) * 100 + now.getDate();
+  const t12 = now.getTime() - 365 * DAY_MS, t24 = now.getTime() - 730 * DAY_MS;
+  const byCur = {};
+  const missing = orderDocs.filter(d => d.docType === 'rechnung' && revenueIds(c).has(d.contactId)
+    && !isFinite(typeof d.betrag === 'number' ? d.betrag : parseFloat(d.betrag))).length;
+  let count = 0, lastDate = null;
+  revenueItems(c).forEach(it => {
+    const d = it.date ? new Date(it.date + 'T12:00:00') : null;
+    if (!d || isNaN(d)) return;
+    const r = byCur[it.cur] = byCur[it.cur] || { ytd: 0, ytdPrev: 0, prevYear: 0, l12: 0, p12: 0, brands: {} };
+    count++;
+    const iy = d.getFullYear(), imd = (d.getMonth() + 1) * 100 + d.getDate(), t = d.getTime();
+    const bk = it.brand || '?';
+    const b = r.brands[bk] = r.brands[bk] || { ytd: 0, ytdPrev: 0 };
+    if (iy === y) { r.ytd += it.amt; b.ytd += it.amt; }
+    if (iy === y - 1) { r.prevYear += it.amt; if (imd <= md) { r.ytdPrev += it.amt; b.ytdPrev += it.amt; } }
+    if (t > t12) r.l12 += it.amt; else if (t > t24) r.p12 += it.amt;
+    if (!lastDate || t > lastDate) lastDate = t;
+  });
+  return { byCur, count, lastDate, missing };
+}
+
+function fmtMoney(v, cur) { return (cur || 'CHF') + ' ' + Math.round(v).toLocaleString('de-CH'); }
+
+function revenueDeltaHtml(cur, prev, currency) {
+  const diff = cur - prev;
+  if (!prev && !cur) return '<span class="rc rev-flat">–</span>';
+  if (!prev) return `<span class="rc rev-up">▲ ${fmtMoney(diff, currency)} (neu)</span>`;
+  const pct = Math.round((diff / Math.abs(prev)) * 100);
+  const cls = Math.abs(pct) < 1 ? 'rev-flat' : diff > 0 ? 'rev-up' : 'rev-down';
+  const arrow = cls === 'rev-up' ? '▲' : cls === 'rev-down' ? '▼' : '■';
+  return `<span class="rc ${cls}">${arrow} ${diff >= 0 ? '+' : '−'}${fmtMoney(Math.abs(diff), currency)} (${pct >= 0 ? '+' : ''}${pct}%)</span>`;
+}
+
+function brandLabel(bk) {
+  if (bk === 'kawea') return 'kawea';
+  const b = BRANDS.find(x => x.id === bk);
+  return b ? b.abk : 'ohne Marke';
+}
+
+function renderRevenueBox(c) {
+  const st = revenueStats(c);
+  const y = new Date().getFullYear();
+  const viaFirma = contactType(c) === 'mitarbeiter' ? ' Der Umsatz läuft über die Firma.' : '';
+  if (!st.count) {
+    return `<div class="field" style="font-size:12.5px;">Umsatz: noch keine Rechnungen mit Betrag.${st.missing ? ` ${st.missing} Rechnung(en) ohne erkannten Betrag – im Reiter RNG/Invoice ergänzen.` : ''}${viaFirma}</div>`;
+  }
+  const curs = Object.keys(st.byCur).sort();
+  return `<div class="field" style="margin-top:6px;">
+    <div style="font-size:12.5px;">Umsatz ${contactType(c) === 'firma' ? '(inkl. verknüpfte Mitarbeiter)' : ''} – Hersteller-Rechnungen${isKaweaCustomer(c) ? ' und kawea-Rechnungen aus Bexio' : ''}</div>
+    ${curs.map(cur => {
+      const r = st.byCur[cur];
+      const brands = Object.entries(r.brands).filter(([, b]) => b.ytd || b.ytdPrev)
+        .sort((a, b) => b[1].ytd - a[1].ytd)
+        .map(([bk, b]) => `${escapeHtml(brandLabel(bk))} ${fmtMoney(b.ytd, cur)} ${revenueDeltaHtml(b.ytd, b.ytdPrev, cur)}`).join(' · ');
+      return `<div class="rev-box">
+        <div class="rev-cell"><div class="rl">${y} bis heute · Vorjahr gleiche Zeit ${fmtMoney(r.ytdPrev, cur)}</div><div class="rv">${fmtMoney(r.ytd, cur)}</div>${revenueDeltaHtml(r.ytd, r.ytdPrev, cur)}</div>
+        <div class="rev-cell"><div class="rl">Letzte 12 Monate · davor ${fmtMoney(r.p12, cur)}</div><div class="rv">${fmtMoney(r.l12, cur)}</div>${revenueDeltaHtml(r.l12, r.p12, cur)}</div>
+        <div class="rev-cell"><div class="rl">Ganzes Jahr ${y - 1}</div><div class="rv">${fmtMoney(r.prevYear, cur)}</div><div class="rc rev-flat">letzte Rechnung ${st.lastDate ? fmtDate(new Date(st.lastDate)) : '–'}</div></div>
+      </div>
+      ${brands ? `<div style="font-size:12px; margin:2px 0 6px;">${y} nach Marke: ${brands}</div>` : ''}`;
+    }).join('')}
+    <div style="font-size:11.5px; color:var(--cream-dim);">Netto-Warenwert aus den Rechnungs-PDFs (wo nicht erkennbar: Rechnungstotal), Gutschriften abgezogen.${st.missing ? ` ${st.missing} Rechnung(en) ohne erkannten Betrag – im Reiter RNG/Invoice ergänzen.` : ''}${viaFirma}</div>
+  </div>`;
+}
+
+async function editInvoiceAmount(docId) {
+  if (!fbDb) return;
+  const d = orderDocs.find(x => x.id === docId);
+  if (!d) return;
+  const cur = d.waehrung || 'EUR';
+  const input = prompt(`Netto-Warenwert dieser Rechnung (${d.filename || ''}).\nGutschrift mit Minus. Währung mit angeben, z. B. "1250.50 EUR":`,
+    isFinite(d.betrag) ? `${d.betrag} ${cur}` : `0 ${cur}`);
+  if (input === null) return;
+  const m = input.replace(/'/g, '').match(/(-?\d+(?:[.,]\d+)?)\s*(EUR|CHF)?/i);
+  if (!m) { toast('Betrag nicht verstanden.'); return; }
+  await fbDb.collection('crmOrderDocs').doc(docId).update({
+    betrag: parseFloat(m[1].replace(',', '.')), waehrung: (m[2] || cur).toUpperCase(),
+    betragManuell: true, betragTyp: 'netto',
+  });
+  toast('Betrag gespeichert.');
 }
 
 let contactSort = 'abc';
@@ -1731,6 +1863,7 @@ function renderContactDetailInner(id) {
     </div>
     <div class="field" style="margin-top:10px;">${renderBrandGrid(c)}</div>
     <div class="field">${renderKeyAccountBox(c)}</div>
+    ${renderRevenueBox(c)}
     <div class="field">
       ${contactType(c) === 'unklar' ? `<div style="color:var(--amber); margin-bottom:4px;">Firma «${escapeHtml(c.firma)}» eingetragen, aber nicht verknüpft. <a href="#" onclick="openCompanyLinkModal('${c.id}'); return false;" style="color:var(--amber); text-decoration:underline;">Jetzt verknüpfen</a> · <a href="#" onclick="setContactTypeQuick('${c.id}','firma'); return false;" style="color:var(--amber); text-decoration:underline;">ist selbst eine Firma</a></div>` : ''}
       🏢 ${linkedCompany
@@ -1934,6 +2067,10 @@ function renderOrderDocList(list) {
       <div style="color:var(--cream-dim); font-size:12px;">
         ${d.orderRef ? `Ref. ${escapeHtml(d.orderRef)}` : ''}${d.mailbox ? (d.orderRef ? ' · ' : '') + escapeHtml(d.mailbox) : ''}
       </div>
+      ${d.docType === 'rechnung' ? `<div style="font-size:12.5px;">${isFinite(d.betrag)
+        ? `<b>${fmtMoney(d.betrag, d.waehrung || 'EUR')}</b> ${d.betragManuell ? '(von Hand)' : d.betragTyp === 'total' ? '(Total)' : '(netto)'}${d.rechnungsDatum ? ' · ' + fmtDate(d.rechnungsDatum) : ''}`
+        : `<span style="color:var(--amber);">Betrag nicht erkannt</span>`}
+        <a href="#" onclick="editInvoiceAmount('${d.id}'); return false;" style="color:var(--cream-dim); margin-left:6px;">${isFinite(d.betrag) ? 'korrigieren' : 'ergänzen'}</a></div>` : ''}
       ${d.subject ? `<div style="font-size:12.5px;">${escapeHtml(d.subject)}</div>` : ''}
     </div>
   `).join('');
