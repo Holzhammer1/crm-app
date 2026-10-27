@@ -254,6 +254,27 @@
     color: color-mix(in srgb, var(--stage, var(--gold)) 80%, #000);
     border: 1px solid color-mix(in srgb, var(--stage, var(--gold)) 25%, var(--anthracite-line));
   }
+  /* Messe- und Besuchsplaner */
+  .fair-days { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 900px) { .fair-days { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .fair-days { grid-template-columns: 1fr; } }
+  .fair-day h3 { font-size: 13px; margin: 0 0 6px; padding-bottom: 5px; border-bottom: 2px solid var(--cream); display: flex; justify-content: space-between; }
+  .fair-slot { border: 1px solid var(--anthracite-line); border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; background: var(--anthracite-800); font-size: 12.5px; }
+  .fair-slot .ft { font-weight: 600; font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; align-items: center; }
+  .fair-slot.free .ft a { font-weight: 400; color: var(--cream-dim); font-size: 12px; }
+  .fair-slot.booked { border-left: 3px solid var(--gold); }
+  .fair-book { margin-top: 5px; padding-top: 5px; border-top: 1px dashed var(--anthracite-line); }
+  .fair-book .fb-name { font-weight: 600; color: var(--gold-soft); cursor: pointer; }
+  .fair-book .fb-sub { font-size: 11.5px; color: var(--cream-dim); }
+  .fair-book .fb-act a { font-size: 11.5px; color: var(--cream-dim); margin-right: 8px; }
+  .planner-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .planner-filters select { width: auto; padding: 6px 8px; font-size: 12.5px; }
+  .plan-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--anthracite-line); font-size: 12.5px; }
+  .plan-row:last-child { border-bottom: none; }
+  @media (max-width: 720px) { .plan-row { grid-template-columns: 1fr; } }
+  .plan-row .pr-name { font-weight: 600; color: var(--cream); cursor: pointer; }
+  .plan-row .pr-sub { color: var(--cream-dim); font-size: 11.5px; }
+
   /* Key Accounts: Kontakt-Ampel */
   .ka-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
   .ka-tag.gruen { background: color-mix(in srgb, var(--green) 14%, var(--anthracite-800)); color: var(--green); }
@@ -367,6 +388,7 @@
     <div class="tab" data-view="tasks">Aufgaben <span class="count" id="countTasks">0</span></div>
     <div class="tab" data-view="followups">Follow-ups <span class="count" id="countFollowups">0</span></div>
     <div class="tab" data-view="keyaccounts">Key Accounts <span class="count" id="countKeyAccounts">0</span></div>
+    <div class="tab" data-view="planner">Messe &amp; Besuche</div>
     <div class="tab" data-view="calendar">Kalender</div>
     <div class="tab" data-view="phonecontacts">iPhone-Kontakte <span class="count" id="countPhoneContacts">0</span></div>
     <div class="tab" data-view="pipeline">Pipeline</div>
@@ -462,6 +484,66 @@
   </div>
 
   <!-- FOLLOW-UPS -->
+  <div class="view" id="view-planner">
+    <div class="panel">
+      <h2 id="fairTitle">Messeplaner</h2>
+      <div class="planner-filters">
+        <select id="fairSelect" onchange="setFair(this.value)"></select>
+        <span id="fairSummary" style="font-size:12.5px; color:var(--cream-dim);"></span>
+      </div>
+      <div style="color:var(--cream-dim); font-size:12.5px; margin:-2px 0 12px 0;">Termine landen als Kalendertermin in iCloud. Nach der Messe greift automatisch das Follow-up nach 7 Tagen. Gesprächsnotizen direkt beim Termin erfassen.</div>
+      <div class="fair-days" id="fairGrid"></div>
+    </div>
+    <div class="panel">
+      <h2>Wen einladen?</h2>
+      <div class="planner-filters">
+        <select id="inviteBrand" onchange="renderFairInvites()"></select>
+        <select id="inviteGroup" onchange="renderFairInvites()">
+          <option value="alle">Kunden + Prospects</option>
+          <option value="ka">nur Key Accounts</option>
+          <option value="kunde">nur Kunden (Status aktiv)</option>
+          <option value="prospect">nur Prospects</option>
+        </select>
+        <select id="inviteRegion" onchange="renderFairInvites()"></select>
+        <button class="small" onclick="copyInviteEmails()">E-Mail-Adressen kopieren</button>
+        <span id="inviteCount" style="font-size:12.5px; color:var(--cream-dim);"></span>
+      </div>
+      <div id="fairInvites"></div>
+    </div>
+    <div class="panel">
+      <h2>Besuchsplaner</h2>
+      <div class="planner-filters">
+        <select id="visitRegion" onchange="renderVisitPlanner()"></select>
+        <select id="visitGroup" onchange="renderVisitPlanner()">
+          <option value="ka">Key Accounts</option>
+          <option value="kunde">alle aktiven Kunden</option>
+          <option value="alle">Kunden + Prospects</option>
+        </select>
+        <span style="font-size:12.5px; color:var(--cream-dim);">Sortiert nach letztem Kontakt – wer am längsten nichts gehört hat, steht oben.</span>
+      </div>
+      <div id="visitList"></div>
+      <h3 style="font-size:13px; color:var(--gold-soft); margin:16px 0 6px;">Geplante Besuche (nächste 60 Tage)</h3>
+      <div id="visitUpcoming"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="fairModalBackdrop">
+    <div class="modal">
+      <h2 id="fairModalTitle">Messetermin</h2>
+      <div class="form-grid">
+        <div class="full"><label>Kunde (Firma)</label>
+          <input type="text" id="fm-search" placeholder="Firma suchen…" oninput="fillFairContactSelect()" autocomplete="off" style="margin-bottom:6px;">
+          <select id="fm-contact" size="6"></select></div>
+        <div class="full"><label>Treffpunkt am Stand</label><select id="fm-stand"></select></div>
+        <div class="full"><label>Mit wem / Notiz (optional)</label><input type="text" id="fm-notiz" placeholder="z. B. Einkäufer Tischkultur + Gastro"></div>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+        <button class="ghost" onclick="closeFairModal()">Abbrechen</button>
+        <button class="primary" onclick="saveFairBooking()">Termin eintragen</button>
+      </div>
+    </div>
+  </div>
+
   <div class="view" id="view-keyaccounts">
     <div class="panel">
       <h2>Key Accounts – Kontakt-Ampel</h2>
@@ -914,6 +996,7 @@ async function fbLoadAll() {
     events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderCalendar();
     renderKeyAccounts();
+    renderPlanner();
     if (selectedContactId) renderContactDetail(selectedContactId);
   }, () => {});
   fbDb.collection('crmActivities').onSnapshot(snap => {
@@ -1589,6 +1672,228 @@ async function editInvoiceAmount(docId) {
     betragManuell: true, betragTyp: 'netto',
   });
   toast('Betrag gespeichert.');
+}
+
+// ---------- Messe- und Besuchsplaner ----------
+// Messetermine sind normale crmEvents mit messe/messeStand -> gehen nach iCloud,
+// erscheinen beim Kunden und lösen nach 7 Tagen das Follow-up aus.
+const FAIRS = [
+  {
+    id: 'ambiente2027', name: 'Ambiente Frankfurt 2027', ort: 'Messe Frankfurt',
+    days: [['2027-01-29', 'Freitag'], ['2027-01-30', 'Samstag'], ['2027-01-31', 'Sonntag'], ['2027-02-01', 'Montag']],
+    slots: [['09:00', '10:30'], ['11:00', '12:30'], ['13:00', '14:30'], ['15:00', '16:30'], ['16:45', '18:00']],
+    stands: { cerve: 'Halle 12.0 C63', seltmann: 'Halle 12.1 B88', mepra: 'Halle 12.1 C75', vsm: 'Halle 12.0 C54',
+              costaverde: 'Halle 12.1 C29', tognana: 'Halle 8.0 K50 / 12.1 C71', zafferano: 'Halle 12.1 D01', guzzini: 'Halle 9.1 B05' },
+    terminblatt: 'https://claude.ai/artifact/ERVXUspDFGWzbdorFD2Jc2',
+  },
+];
+let currentFairId = FAIRS[0].id;
+try { currentFairId = localStorage.getItem('crmFair') || currentFairId; } catch (e) {}
+let fairBookingSlot = null;
+
+function currentFair() { return FAIRS.find(f => f.id === currentFairId) || FAIRS[0]; }
+function setFair(id) { currentFairId = id; try { localStorage.setItem('crmFair', id); } catch (e) {} renderPlanner(); }
+
+function fairEvents(fair) { return events.filter(e => e.messe === fair.id && !e.pendingDelete); }
+
+const PLZ_REGIONEN = [['', 'Alle Regionen'], ['1', '1 – Genf, Waadt, Wallis (Unterwallis)'], ['2', '2 – Neuenburg, Jura, Biel'],
+  ['3', '3 – Bern, Oberwallis'], ['4', '4 – Basel, Solothurn'], ['5', '5 – Aargau'], ['6', '6 – Zentralschweiz, Tessin'],
+  ['7', '7 – Graubünden'], ['8', '8 – Zürich, Thurgau, Schaffhausen'], ['9', '9 – St. Gallen, Appenzell']];
+function plzRegion(c) { const m = String(c.plz || '').match(/\d/); return m ? m[0] : ''; }
+
+function renderPlanner() {
+  if (!document.getElementById('view-planner').classList.contains('active')) return;
+  const fair = currentFair();
+  const sel = document.getElementById('fairSelect');
+  sel.innerHTML = FAIRS.map(f => `<option value="${f.id}" ${f.id === fair.id ? 'selected' : ''}>${escapeHtml(f.name)}</option>`).join('');
+  document.getElementById('fairTitle').textContent = 'Messeplaner – ' + fair.name;
+  const evs = fairEvents(fair);
+  const slotCount = fair.days.length * fair.slots.length;
+  document.getElementById('fairSummary').textContent = `${evs.length} Termin(e) eingetragen · ${slotCount} Zeitblöcke`;
+  document.getElementById('fairGrid').innerHTML = fair.days.map(([d, label]) => `
+    <div class="fair-day">
+      <h3>${label} <span style="color:var(--cream-dim); font-weight:400;">${fmtDate(d)}</span></h3>
+      ${fair.slots.map(([von, bis]) => {
+        const startIso = new Date(`${d}T${von}:00`).toISOString();
+        const here = evs.filter(e => e.start === startIso || (e.start && Math.abs(Date.parse(e.start) - Date.parse(startIso)) < 60000));
+        return `<div class="fair-slot ${here.length ? 'booked' : 'free'}">
+          <div class="ft"><span>${von}–${bis}</span><a href="#" onclick="openFairModal('${d}', '${von}', '${bis}'); return false;">+ eintragen</a></div>
+          ${here.map(e => {
+            const c = contacts.find(x => x.id === e.contactId);
+            const b = BRANDS.find(x => x.id === e.messeStand);
+            const hasNote = activities.some(a => a.eventId === e.id);
+            return `<div class="fair-book">
+              <div class="fb-name" onclick="${c ? `openFollowupContact('${c.id}')` : ''}">${escapeHtml(c ? (c.firma || c.name || '') : (e.titel || ''))}</div>
+              <div class="fb-sub">${b ? escapeHtml(b.abk + ' · ' + (fair.stands[b.id] || '')) : 'kein Stand'}${e.messeNotiz ? ' · ' + escapeHtml(e.messeNotiz) : ''}</div>
+              <div class="fb-act">
+                ${c ? `<a href="#" onclick="openActivityModal('${c.id}', '${e.id}'); return false;">${hasNote ? '✓ Notiz' : '✎ Gesprächsnotiz'}</a>` : ''}
+                <a href="#" onclick="openEventModal('${e.id}'); return false;">bearbeiten</a>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+
+  const ib = document.getElementById('inviteBrand');
+  if (!ib.options.length) {
+    ib.innerHTML = '<option value="">alle Marken am Stand</option>' +
+      Object.keys(fair.stands).map(id => { const b = BRANDS.find(x => x.id === id); return b ? `<option value="${id}">${b.abk} – ${escapeHtml(b.name)}</option>` : ''; }).join('');
+    const regionOpts = PLZ_REGIONEN.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    document.getElementById('inviteRegion').innerHTML = regionOpts;
+    document.getElementById('visitRegion').innerHTML = regionOpts;
+  }
+  renderFairInvites();
+  renderVisitPlanner();
+}
+
+function plannerMatchesGroup(c, group) {
+  if (contactType(c) !== 'firma') return false;
+  const st = c.status || 'neu';
+  if (st === 'produzent') return false;
+  if (group === 'ka') return isKeyAccount(c);
+  if (group === 'kunde') return st === 'aktiv' || isKeyAccount(c);
+  if (group === 'prospect') return st === 'kontakt';
+  return st === 'aktiv' || st === 'kontakt' || st === 'nachfassen' || isKeyAccount(c);
+}
+
+let lastInviteList = [];
+function renderFairInvites() {
+  const fair = currentFair();
+  const brand = document.getElementById('inviteBrand').value;
+  const group = document.getElementById('inviteGroup').value;
+  const region = document.getElementById('inviteRegion').value;
+  const booked = new Set(fairEvents(fair).map(e => e.contactId));
+  const fairBrands = brand ? [brand] : Object.keys(fair.stands);
+  const list = contacts.filter(c => plannerMatchesGroup(c, group)
+    && (!region || plzRegion(c) === region)
+    && (!brand ? true : !!brandState(c, brand))
+    && !booked.has(c.id))
+    .map(c => ({ c, brands: fairBrands.filter(b => brandState(c, b)) }))
+    .sort((a, b) => (isKeyAccount(b.c) - isKeyAccount(a.c)) || (b.brands.length - a.brands.length)
+      || contactSortKey(a.c).localeCompare(contactSortKey(b.c), 'de', { sensitivity: 'base' }));
+  lastInviteList = list.map(x => x.c);
+  document.getElementById('inviteCount').textContent = `${list.length} Firma(n) noch ohne Termin · ${booked.size} schon eingetragen`;
+  document.getElementById('fairInvites').innerHTML = list.length ? list.slice(0, 150).map(({ c, brands }) => {
+    const mail = followupContactEmail(c);
+    const subject = encodeURIComponent(`Einladung ${fair.name}`);
+    const body = encodeURIComponent(`Guten Tag\n\ngerne laden wir Sie an die ${fair.name} ein. Unter folgendem Link können Sie direkt einen Zeitblock wählen:\n${fair.terminblatt}\n\nFreundliche Grüsse\nMarkus Holzhammer\nTrendSENSE GmbH`);
+    return `<div class="plan-row">
+      <div><div class="pr-name" onclick="openFollowupContact('${c.id}')">${escapeHtml(c.firma || c.name || '')}</div>
+        <div class="pr-sub">${escapeHtml([c.plz, c.ort].filter(Boolean).join(' '))}${isKeyAccount(c) ? ' · 🔑 Key Account' : ''}</div></div>
+      <div>${brands.map(b => { const bb = BRANDS.find(x => x.id === b); return `<span class="brand-badge ${brandState(c, b)}" title="${escapeHtml(bb.name)}">${bb.abk}</span>`; }).join(' ') || '<span class="pr-sub">keine Ausstellermarke markiert</span>'}</div>
+      <div style="display:flex; gap:6px;">
+        ${mail ? `<button class="small" onclick="location.href='mailto:${encodeURI(mail)}?subject=${subject}&body=${body}'">✉ Einladen</button>` : ''}
+        <button class="small" onclick="openFairModalFor('${c.id}')">+ Termin</button>
+      </div>
+    </div>`;
+  }).join('') + (list.length > 150 ? `<div class="pr-sub" style="padding:8px;">… und ${list.length - 150} weitere – Filter enger setzen.</div>` : '')
+  : `<div class="empty-state">Keine passenden Firmen – Filter anpassen.</div>`;
+}
+
+async function copyInviteEmails() {
+  const mails = [...new Set(lastInviteList.map(followupContactEmail).filter(Boolean))];
+  if (!mails.length) { toast('Keine E-Mail-Adressen in der Liste.'); return; }
+  try { await navigator.clipboard.writeText(mails.join('; ')); toast(`${mails.length} Adressen kopiert – für BCC einfügen.`); }
+  catch (e) { prompt('Adressen kopieren:', mails.join('; ')); }
+}
+
+function fillFairContactSelect(selectedId) {
+  const q = (document.getElementById('fm-search').value || '').toLowerCase().trim();
+  const list = contacts.filter(c => contactType(c) === 'firma' && (!q || contactSearchScore(c, q) > 0))
+    .sort((a, b) => contactSortKey(a).localeCompare(contactSortKey(b), 'de', { sensitivity: 'base' })).slice(0, 200);
+  const sel = document.getElementById('fm-contact');
+  sel.innerHTML = list.map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${escapeHtml(c.firma || c.name || '')}${c.ort ? ' · ' + escapeHtml(c.ort) : ''}</option>`).join('');
+  if (!selectedId && list.length === 1) sel.value = list[0].id;
+}
+
+function openFairModal(day, von, bis, contactId) {
+  const fair = currentFair();
+  fairBookingSlot = { day, von, bis };
+  document.getElementById('fairModalTitle').textContent = `${fair.name} · ${fmtDate(day)} · ${von}–${bis}`;
+  document.getElementById('fm-search').value = '';
+  fillFairContactSelect(contactId);
+  const c = contactId ? contacts.find(x => x.id === contactId) : null;
+  document.getElementById('fm-stand').innerHTML = '<option value="">– noch offen –</option>' + Object.entries(fair.stands).map(([id, hall]) => {
+    const b = BRANDS.find(x => x.id === id);
+    return `<option value="${id}">${b ? b.abk + ' – ' + escapeHtml(b.name) : id} · ${hall}</option>`;
+  }).join('');
+  document.getElementById('fm-notiz').value = '';
+  document.getElementById('fairModalBackdrop').classList.add('active');
+}
+
+// «+ Termin» aus der Einladungsliste: ersten freien Block vorschlagen
+function openFairModalFor(contactId) {
+  const fair = currentFair();
+  const taken = new Set(fairEvents(fair).map(e => Date.parse(e.start)));
+  for (const [d] of fair.days) for (const [von, bis] of fair.slots) {
+    if (!taken.has(Date.parse(new Date(`${d}T${von}:00`).toISOString()))) { openFairModal(d, von, bis, contactId); return; }
+  }
+  const [d] = fair.days[0]; const [von, bis] = fair.slots[0];
+  openFairModal(d, von, bis, contactId);
+}
+
+function closeFairModal() { document.getElementById('fairModalBackdrop').classList.remove('active'); }
+
+async function saveFairBooking() {
+  if (!fbDb || !fairBookingSlot) return;
+  const fair = currentFair();
+  const contactId = document.getElementById('fm-contact').value;
+  if (!contactId) { toast('Bitte eine Firma auswählen.'); return; }
+  const c = contacts.find(x => x.id === contactId);
+  const stand = document.getElementById('fm-stand').value;
+  const b = BRANDS.find(x => x.id === stand);
+  const notiz = document.getElementById('fm-notiz').value.trim();
+  const { day, von, bis } = fairBookingSlot;
+  await fbDb.collection('crmEvents').add({
+    titel: `${fair.name.split(' ')[0]}: ${c.firma || c.name || ''}${b ? ' @ ' + b.abk : ''}`,
+    ort: [fair.ort, b ? `${b.name} ${fair.stands[stand]}` : ''].filter(Boolean).join(', '),
+    start: new Date(`${day}T${von}:00`).toISOString(),
+    ende: new Date(`${day}T${bis}:00`).toISOString(),
+    contactId, messe: fair.id, messeStand: stand || null, messeNotiz: notiz || null,
+    pushPending: true, quelle: 'm.holzhammer@swissonline.ch', createdInCrm: true,
+  });
+  touchContact(contactId);
+  closeFairModal();
+  toast('Messetermin eingetragen – wird in Kürze nach iCloud übertragen.');
+}
+
+function renderVisitPlanner() {
+  const region = document.getElementById('visitRegion').value;
+  const group = document.getElementById('visitGroup').value;
+  const list = contacts.filter(c => plannerMatchesGroup(c, group) && (!region || plzRegion(c) === region))
+    .map(c => ({ c, t: kaTouches(c) }))
+    .sort((a, b) => ((a.t.last ? a.t.last.t : 0) - (b.t.last ? b.t.last.t : 0)));
+  document.getElementById('visitList').innerHTML = list.length ? list.slice(0, 80).map(({ c, t }) => {
+    const days = t.last ? Math.floor((Date.now() - t.last.t) / DAY_MS) : null;
+    return `<div class="plan-row">
+      <div><div class="pr-name" onclick="openFollowupContact('${c.id}')">${escapeHtml(c.firma || c.name || '')}</div>
+        <div class="pr-sub">${escapeHtml([c.adresse, [c.plz, c.ort].filter(Boolean).join(' ')].filter(Boolean).join(', '))}</div></div>
+      <div>${kaTagHtml(c)} <span class="pr-sub">${t.next ? 'Termin am ' + fmtDate(new Date(t.next.t)) + ' · ' : ''}${t.last ? `letzter Kontakt vor ${days} T.: ${escapeHtml(t.last.label)}` : 'noch kein Kontakt erfasst'}</span></div>
+      <div><button class="small" onclick="planVisit('${c.id}')">+ Besuch planen</button></div>
+    </div>`;
+  }).join('') : `<div class="empty-state">Keine Firmen in dieser Auswahl.${group === 'ka' ? '<div class="hint">Noch keine Key Accounts gesetzt? Dann «alle aktiven Kunden» wählen.</div>' : ''}</div>`;
+
+  const now = Date.now();
+  const upcoming = events.filter(e => e.contactId && !e.messe && !e.isFollowup && !e.pendingDelete && e.start
+    && Date.parse(e.start) > now && Date.parse(e.start) < now + 60 * DAY_MS
+    && !/^(Follow-up|Key Account):/.test(e.titel || ''))
+    .sort((a, b) => a.start.localeCompare(b.start));
+  document.getElementById('visitUpcoming').innerHTML = upcoming.length ? upcoming.map(e => {
+    const c = contacts.find(x => x.id === e.contactId);
+    return `<div class="plan-row"><div><div class="pr-name" onclick="openFollowupContact('${e.contactId}')">${escapeHtml(c ? (c.firma || c.name || '') : '')}</div>
+      <div class="pr-sub">${escapeHtml(e.titel || '')}</div></div>
+      <div class="pr-sub">${fmtDateTime(e.start)}${e.ort ? ' · ' + escapeHtml(e.ort) : ''}</div>
+      <div><a href="#" onclick="openEventModal('${e.id}'); return false;" style="font-size:12px; color:var(--cream-dim);">bearbeiten</a></div></div>`;
+  }).join('') : `<div class="empty-state">Keine Besuche in den nächsten 60 Tagen geplant.</div>`;
+}
+
+function planVisit(contactId) {
+  const c = contacts.find(x => x.id === contactId);
+  openEventModal(null);
+  document.getElementById('ev-titel').value = `Besuch ${c.firma || c.name || ''}`;
+  document.getElementById('ev-ort').value = [c.adresse, [c.plz, c.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  document.getElementById('ev-contact').value = contactId;
 }
 
 let contactSort = 'abc';
@@ -3603,6 +3908,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.getElementById('view-' + tab.dataset.view).classList.add('active');
     if (tab.dataset.view === 'calendar') calendarGoToday();
+    if (tab.dataset.view === 'planner') renderPlanner();
   });
 });
 
