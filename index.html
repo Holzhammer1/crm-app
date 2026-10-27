@@ -1359,7 +1359,8 @@ function kaHeaderHtml(c) {
   if (isKeyAccount(comp)) {
     const st = kaStatus(comp);
     return `<span class="ka-tag ${st.ampel}" style="font-size:12.5px; padding:4px 12px;" title="${escapeHtml(kaLastText(st))}">
-      ${KA_DOT[st.ampel]} ${escapeHtml(st.text)} · letzter Kontakt ${st.last ? 'vor ' + Math.floor((Date.now() - st.last.t) / DAY_MS) + ' T.' : '–'}</span>`;
+      ${KA_DOT[st.ampel]} ${escapeHtml(st.text)} · letzter Kontakt ${st.last ? 'vor ' + Math.floor((Date.now() - st.last.t) / DAY_MS) + ' T.' : '–'}</span>
+      ${comp === c ? `<a href="#" onclick="if (confirm('${escapeHtml((c.firma || c.name || '').replace(/'/g, ''))} nicht mehr als Key Account führen?')) setKeyAccount('${c.id}', '', null); return false;" title="Key Account entfernen" style="font-size:11.5px; color:var(--cream-dim);">✕ entfernen</a>` : ''}`;
   }
   if (comp === c && contactType(c) === 'firma' && !isKaweaCustomer(c)) {
     return `<a href="#" onclick="setKeyAccount('${c.id}', 'retail', 4); return false;" style="font-size:11.5px; color:var(--cream-dim);">+ als Key Account führen</a>`;
