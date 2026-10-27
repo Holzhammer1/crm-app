@@ -254,6 +254,14 @@
     color: color-mix(in srgb, var(--stage, var(--gold)) 80%, #000);
     border: 1px solid color-mix(in srgb, var(--stage, var(--gold)) 25%, var(--anthracite-line));
   }
+  /* Kontakt-Typ: Firma / Mitarbeiter / Privat */
+  .avatar.card.person { border-radius: 50%; }
+  .type-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .type-tag.firma { background: color-mix(in srgb, var(--gold) 16%, var(--anthracite-800)); color: var(--gold-soft); }
+  .type-tag.mitarbeiter { background: var(--anthracite-700); color: var(--cream-dim); }
+  .type-tag.privat { background: var(--anthracite-700); color: var(--cream-dim); }
+  .type-tag.unklar { background: color-mix(in srgb, var(--amber) 14%, var(--anthracite-800)); color: var(--amber); }
+  .contact-card.is-firma .name { font-family: Georgia, serif; font-size: 16px; }
   .letter-divider {
     grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; margin: 10px 0 -4px 2px;
     font-family: Georgia, serif; font-size: 20px; color: var(--gold-soft);
@@ -350,6 +358,12 @@
       <div class="sort-toggle" id="contactSortToggle">
         <button data-sort="abc" onclick="setContactSort('abc')">A–Z</button>
         <button data-sort="recent" onclick="setContactSort('recent')">Zuletzt aktiv</button>
+      </div>
+      <div class="sort-toggle" id="contactTypeToggle">
+        <button data-type="alle" onclick="setContactTypeFilter('alle')">Alle</button>
+        <button data-type="firma" onclick="setContactTypeFilter('firma')">Firmen</button>
+        <button data-type="mitarbeiter" onclick="setContactTypeFilter('mitarbeiter')">Mitarbeiter</button>
+        <button data-type="privat" onclick="setContactTypeFilter('privat')">Privat</button>
       </div>
       <select id="brandFilter" onchange="setBrandFilter(this.value)" title="Nach Marke filtern"></select>
       <button id="btnBulkMode">Mehrere auswählen</button>
@@ -488,6 +502,12 @@
     <div class="form-grid">
       <div class="full"><label>Name *</label><input type="text" id="f-name" placeholder="Vorname Nachname" oninput="updateModalSearchLinks()"></div>
       <div class="full"><label>Firma</label><input type="text" id="f-firma" oninput="updateModalSearchLinks()"></div>
+      <div class="full"><label>Typ</label><select id="f-typ">
+        <option value="">Automatisch erkennen</option>
+        <option value="firma">Firma</option>
+        <option value="mitarbeiter">Mitarbeiter (Person bei einer Firma)</option>
+        <option value="privat">Privatperson</option>
+      </select></div>
       <div class="full"><label>Gehört zu Firma (verknüpfen)</label><select id="f-firmaKontakt"></select>
         <div style="font-size:11.5px; color:var(--cream-dim); margin-top:4px;">Verknüpft diesen Kontakt als Mitarbeiter mit dem Firmen-Kontakt – E-Mails und Termine laufen dann auch bei der Firma auf.</div></div>
       <div class="full quick-links" id="modalSearchLinks">
@@ -1103,6 +1123,65 @@ function matchesBrandFilter(c) {
   return true;
 }
 
+// ---------- Kontakt-Typ (Firma / Mitarbeiter / Privat) ----------
+// Von Hand gesetzter Typ (c.typ) hat Vorrang, sonst automatisch:
+//  verknüpft mit Firma -> Mitarbeiter; Firma ausgefüllt und Name = Firma (oder leer) -> Firma;
+//  hat Mitarbeiter -> Firma; Firma eingetragen, aber nicht verknüpft -> unklar; sonst Privat.
+const TYPE_LABELS = { firma: '🏢 Firma', mitarbeiter: '👤 Mitarbeiter', privat: '🏠 Privat', unklar: '👤 Firma nicht verknüpft' };
+
+function contactType(c) {
+  if (c.typ === 'firma' || c.typ === 'mitarbeiter' || c.typ === 'privat') return c.typ;
+  if (c.firmaKontaktId && contacts.some(x => x.id === c.firmaKontaktId)) return 'mitarbeiter';
+  const firma = (c.firma || '').trim().toLowerCase();
+  const name = (c.name || '').trim().toLowerCase();
+  if (firma && (!name || firma === name)) return 'firma';
+  if ((c.mitarbeiter || []).length || contacts.some(x => x.firmaKontaktId === c.id)) return 'firma';
+  if (firma) return 'unklar';
+  return 'privat';
+}
+
+function typeTagHtml(c) {
+  const t = contactType(c);
+  if (t === 'mitarbeiter') {
+    const comp = c.firmaKontaktId ? contacts.find(x => x.id === c.firmaKontaktId) : null;
+    const compName = comp ? (comp.firma || comp.name || '') : (c.firma || '');
+    return `<span class="type-tag mitarbeiter">👤 ${compName ? 'bei ' + escapeHtml(compName) : 'Mitarbeiter'}</span>`;
+  }
+  if (t === 'firma') {
+    const n = (c.mitarbeiter || []).length + contacts.filter(x => x.firmaKontaktId === c.id).length;
+    return `<span class="type-tag firma">🏢 Firma${n ? ' · ' + n + ' MA' : ''}</span>`;
+  }
+  return `<span class="type-tag ${t}">${TYPE_LABELS[t]}</span>`;
+}
+
+let contactTypeFilter = 'alle';
+try { contactTypeFilter = localStorage.getItem('crmContactType') || 'alle'; } catch (e) {}
+
+function setContactTypeFilter(t) {
+  contactTypeFilter = t;
+  try { localStorage.setItem('crmContactType', t); } catch (e) {}
+  renderContacts();
+}
+
+// Treffer der Suche: 3 = Firmenname, 2 = eigener Name, 1 = E-Mail, 0 = kein Treffer.
+// Mitarbeiter, die nur über den Firmennamen passen, gelten nicht als Treffer -
+// so erscheint bei «Banholzer» die Firma und nicht alle ihre Mitarbeiter.
+function contactSearchScore(c, q) {
+  if (!q) return 1;
+  const t = contactType(c);
+  const name = (c.name || '').toLowerCase();
+  const firma = (c.firma || '').toLowerCase();
+  if (t === 'firma') {
+    if (name.startsWith(q) || firma.startsWith(q)) return 4;
+    if (name.includes(q) || firma.includes(q)) return 3;
+  } else {
+    if (name.includes(q)) return 2;
+    if (t !== 'mitarbeiter' && firma.includes(q)) return 2;
+  }
+  if ((c.email || '').toLowerCase().includes(q)) return 1;
+  return 0;
+}
+
 let contactSort = 'abc';
 try { contactSort = localStorage.getItem('crmContactSort') || 'abc'; } catch (e) {}
 
@@ -1125,11 +1204,23 @@ function renderContacts() {
   const q = (document.getElementById('contactSearch').value || '').toLowerCase();
   const grid = document.getElementById('contactCardGrid');
   document.querySelectorAll('#contactSortToggle button').forEach(b => b.classList.toggle('active', b.dataset.sort === contactSort));
-  let filtered = contacts.filter(c =>
-    (!q || (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q))
-    && matchesBrandFilter(c)
-  );
-  if (contactSort === 'abc') {
+  document.querySelectorAll('#contactTypeToggle button').forEach(b => b.classList.toggle('active', b.dataset.type === contactTypeFilter));
+  let filtered = contacts.filter(c => {
+    if (!matchesBrandFilter(c)) return false;
+    const t = contactType(c);
+    if (contactTypeFilter === 'firma' && t !== 'firma') return false;
+    if (contactTypeFilter === 'privat' && t !== 'privat') return false;
+    if (contactTypeFilter === 'mitarbeiter' && t !== 'mitarbeiter' && t !== 'unklar') return false;
+    // «Alle»: verknüpfte Mitarbeiter stehen bei ihrer Firma, nicht in der Liste -
+    // ausser die Suche trifft ihren eigenen Namen
+    if (contactTypeFilter === 'alle' && t === 'mitarbeiter' && !(q && contactSearchScore(c, q) >= 2)) return false;
+    return !q || contactSearchScore(c, q) > 0;
+  });
+  if (q) {
+    // bei einer Suche: Firmen zuerst, dann Personen
+    filtered = [...filtered].sort((a, b) => contactSearchScore(b, q) - contactSearchScore(a, q)
+      || contactSortKey(a).localeCompare(contactSortKey(b), 'de', { sensitivity: 'base' }));
+  } else if (contactSort === 'abc') {
     filtered = [...filtered].sort((a, b) => {
       const la = contactLetter(a), lb = contactLetter(b);
       if (la !== lb) return la === '#' ? 1 : lb === '#' ? -1 : la.localeCompare(lb);
@@ -1146,18 +1237,19 @@ function renderContacts() {
   let lastLetter = null;
   grid.innerHTML = filtered.map(c => {
     let divider = '';
-    if (contactSort === 'abc') {
+    if (contactSort === 'abc' && !q) {
       const letter = contactLetter(c);
       if (letter !== lastLetter) { divider = `<div class="letter-divider">${letter}</div>`; lastLetter = letter; }
     }
     return divider + `
-    <div class="contact-card${c.id === selectedContactId ? ' selected' : ''}${bulkSelectedIds.has(c.id) ? ' bulk-selected' : ''}" data-id="${c.id}" style="--stage:${getStageColor(c.status)};">
+    <div class="contact-card${contactType(c) === 'firma' ? ' is-firma' : ''}${c.id === selectedContactId ? ' selected' : ''}${bulkSelectedIds.has(c.id) ? ' bulk-selected' : ''}" data-id="${c.id}" style="--stage:${getStageColor(c.status)};">
       ${bulkMode ? `<input type="checkbox" class="bulk-checkbox" data-id="${c.id}" ${bulkSelectedIds.has(c.id) ? 'checked' : ''} style="position:absolute; top:8px; right:8px; width:18px; height:18px; z-index:2;">` : ''}
-      ${avatarHtml(c, 'card')}
+      ${avatarHtml(c, contactType(c) === 'firma' ? 'card' : 'card person')}
       <div class="info">
         <div class="name">${escapeHtml(c.name || c.firma || '')}</div>
         ${c.firma && c.firma.trim().toLowerCase() !== (c.name || '').trim().toLowerCase() ? `<div class="firma">${escapeHtml(c.firma)}</div>` : ''}
         <div class="card-meta">
+          ${typeTagHtml(c)}
           <span class="stage-pill">${escapeHtml(getStageLabel(c.status))}</span>
           <span class="card-sub">${escapeHtml([c.ort, relativeDays(c.lastActivityAt)].filter(Boolean).join(' · '))}</span>
         </div>
@@ -1302,6 +1394,12 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 }
 
+async function setContactTypeQuick(contactId, typ) {
+  if (!fbDb) return;
+  await fbDb.collection('crmContacts').doc(contactId).update({ typ, lastEditedBy: currentUserName || null });
+  toast('Typ gespeichert.');
+}
+
 // ---------- Kontakt-Detail ----------
 function selectContact(id) {
   selectedContactId = id;
@@ -1379,6 +1477,7 @@ function renderContactDetailInner(id) {
         <div>
           <p class="name">${escapeHtml(c.name || '')}</p>
           ${c.firma ? `<p class="firma">${escapeHtml(c.firma)}</p>` : ''}
+          <div style="margin-top:-8px; margin-bottom:10px;">${typeTagHtml(c)}</div>
         </div>
       </div>
       <div style="display:flex; gap:8px;">
@@ -1409,6 +1508,7 @@ function renderContactDetailInner(id) {
     </div>
     <div class="field" style="margin-top:10px;">${renderBrandGrid(c)}</div>
     <div class="field">
+      ${contactType(c) === 'unklar' ? `<div style="color:var(--amber); margin-bottom:4px;">Firma «${escapeHtml(c.firma)}» eingetragen, aber nicht verknüpft. <a href="#" onclick="openCompanyLinkModal('${c.id}'); return false;" style="color:var(--amber); text-decoration:underline;">Jetzt verknüpfen</a> · <a href="#" onclick="setContactTypeQuick('${c.id}','firma'); return false;" style="color:var(--amber); text-decoration:underline;">ist selbst eine Firma</a></div>` : ''}
       🏢 ${linkedCompany
         ? `Gehört zu <a href="#" onclick="selectContact('${linkedCompany.id}'); return false;" style="color:var(--cream); text-decoration:underline;"><b>${escapeHtml(linkedCompany.name)}</b></a>
            <a href="#" onclick="openCompanyLinkModal('${c.id}'); return false;" style="color:var(--cream-dim); margin-left:6px;">ändern</a>
@@ -2048,6 +2148,7 @@ function openContactModal(id) {
   document.getElementById('contactModalTitle').textContent = c ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
   document.getElementById('f-name').value = c?.name || '';
   document.getElementById('f-firma').value = c?.firma || '';
+  document.getElementById('f-typ').value = c?.typ || '';
   fillCompanySelect(c);
   document.getElementById('f-email').value = c?.email || '';
   document.getElementById('f-telefon').value = c?.telefon || '';
@@ -2092,6 +2193,7 @@ async function saveContact() {
     plz: document.getElementById('f-plz').value.trim(),
     ort: document.getElementById('f-ort').value.trim(),
     notiz: document.getElementById('f-notiz').value.trim(),
+    typ: document.getElementById('f-typ').value || (editingContactId ? firebase.firestore.FieldValue.delete() : null),
     ...companyLinkFields(),
     updatedAt: new Date().toISOString(),
     lastActivityAt: new Date().toISOString(),
@@ -3095,10 +3197,11 @@ function setupContactSearch(inputId, dropdownId, filtersGrid) {
   const matches = () => {
     const q = (input.value || '').trim().toLowerCase();
     if (!q) return [];
-    return contacts.filter(c =>
-      (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q) ||
-      (c.email || '').toLowerCase().includes(q)
-    ).slice(0, 12);
+    return contacts
+      .map(c => ({ c, s: contactSearchScore(c, q) }))
+      .filter(x => x.s > 0)
+      .sort((a, b) => b.s - a.s || contactSortKey(a.c).localeCompare(contactSortKey(b.c), 'de', { sensitivity: 'base' }))
+      .slice(0, 12).map(x => x.c);
   };
   const close = () => dd.classList.remove('open');
   const render = () => {
@@ -3107,8 +3210,8 @@ function setupContactSearch(inputId, dropdownId, filtersGrid) {
     if (hl >= list.length) hl = 0;
     dd.innerHTML = list.length
       ? list.map((c, i) => `<div class="sd-item${i === hl ? ' hl' : ''}" data-id="${c.id}">
-          ${escapeHtml(c.name || c.firma || '')}
-          ${c.firma && c.firma !== c.name ? `<div class="sd-firma">${escapeHtml(c.firma)}</div>` : ''}
+          ${contactType(c) === 'firma' ? '🏢 ' : ''}${escapeHtml(c.name || c.firma || '')}
+          ${c.firma && c.firma !== c.name ? `<div class="sd-firma">${contactType(c) === 'mitarbeiter' ? 'Mitarbeiter bei ' : ''}${escapeHtml(c.firma)}</div>` : ''}
         </div>`).join('')
       : `<div class="sd-empty">Kein Kontakt gefunden.</div>`;
     dd.querySelectorAll('.sd-item').forEach(el =>
