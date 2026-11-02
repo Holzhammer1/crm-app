@@ -404,6 +404,14 @@
     box-shadow: 0 4px 16px rgba(38,35,25,0.16); display: none; }
   .fab:hover { background: var(--gold); border-color: var(--gold); color: #fff; }
   .fab.show { display: block; }
+  .due-edit { cursor: pointer; border-bottom: 1px dashed transparent; }
+  .due-edit:hover { border-bottom-color: currentColor; color: var(--gold-soft); }
+  .date-pop { display: none; position: absolute; z-index: 120; width: 250px; background: var(--anthracite-800);
+    border: 1px solid var(--anthracite-line); border-radius: 10px; box-shadow: 0 8px 28px rgba(38,35,25,0.18); padding: 10px; }
+  .date-pop.open { display: block; }
+  .date-pop .dp-title { font-size: 11.5px; color: var(--cream-dim); margin-bottom: 6px; }
+  .date-pop .dp-quick { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .date-pop .dp-quick button { padding: 5px 9px; font-size: 12px; border-radius: 999px; }
   .import-details > summary { cursor: pointer; color: var(--cream-dim); font-size: 13px; padding: 6px 2px; list-style: none; }
   .import-details > summary::before { content: '▸ '; }
   .import-details[open] > summary::before { content: '▾ '; }
@@ -945,6 +953,17 @@
   <button class="fab" id="fabDash" title="Zum Dashboard" onclick="switchToTab('dashboard')">⌂</button>
   <button class="fab" id="fabTop" title="Nach oben" onclick="scrollToTop()">↑</button>
 </div>
+<div class="date-pop" id="datePop">
+  <div class="dp-title">Fällig am</div>
+  <div class="dp-quick">
+    <button onclick="setTaskDue(0)">Heute</button>
+    <button onclick="setTaskDue(1)">Morgen</button>
+    <button onclick="setTaskDue(7)">+1 Woche</button>
+    <button onclick="setTaskDue(14)">+2 Wochen</button>
+    <button onclick="setTaskDue(30)">+1 Monat</button>
+  </div>
+  <input type="date" id="datePopInput" onchange="setTaskDueDate(this.value)">
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -1243,6 +1262,37 @@ function selectByMailSubject() {
   if (unknown.size) console.log('Nicht im CRM:', [...unknown].join(', '));
 }
 
+// ---------- Fälligkeitsdatum einer Aufgabe ändern ----------
+let datePopTaskId = null;
+function dueEditHtml(t, label, cls) {
+  return `<span class="due-edit ${cls || ''}" title="Datum ändern" onclick="openDatePop(event, '${t.id}')">${label}</span>`;
+}
+function openDatePop(ev, taskId) {
+  ev.stopPropagation(); ev.preventDefault();
+  datePopTaskId = taskId;
+  const t = tasks.find(x => x.id === taskId);
+  const pop = document.getElementById('datePop');
+  document.getElementById('datePopInput').value = t && t.faelligAm ? localDayKey(t.faelligAm) : '';
+  const r = ev.currentTarget.getBoundingClientRect();
+  pop.classList.add('open');
+  const w = pop.offsetWidth;
+  pop.style.top = (window.scrollY + r.bottom + 6) + 'px';
+  pop.style.left = Math.max(8, Math.min(window.scrollX + r.right - w, window.scrollX + document.documentElement.clientWidth - w - 8)) + 'px';
+}
+function closeDatePop() { document.getElementById('datePop').classList.remove('open'); datePopTaskId = null; }
+document.addEventListener('click', e => { if (!e.target.closest('#datePop')) closeDatePop(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDatePop(); });
+function setTaskDue(days) { setTaskDueDate(localDayKey(new Date(Date.now() + days * 86400000))); }
+async function setTaskDueDate(key) {
+  const id = datePopTaskId;
+  if (!id || !key || !fbDb) return;
+  closeDatePop();
+  try {
+    await fbDb.collection('crmTasks').doc(id).update({ faelligAm: key });
+    toast(`Verschoben auf ${fmtDate(key)}.`);
+  } catch (e) { toast(`Fehler: ${e.message || e}`); }
+}
+
 // ---------- Letzte Notiz ----------
 // Gesendete Mails (aus dem Mail-Sync) automatisch den Kunden zuordnen:
 // über die genaue Adresse (Kontakt + seine Firma) oder die Firmen-Domain (z. B. @manor.ch).
@@ -1358,7 +1408,7 @@ function renderDashboard() {
     return `<div class="dash-row">
       <input type="checkbox" title="erledigt" onchange="toggleTask('${t.id}', this.checked)">
       <div class="dr-main">${escapeHtml(t.text || (t.keyAccountId ? 'Key Account melden' : 'Follow-up'))}${who ? ` — <span class="dr-who" onclick="dashOpenContact('${t.contactId}')">${escapeHtml(who)}</span>` : ''}</div>
-      <div class="dr-side${k < todayKey ? ' overdue' : ''}">${k === todayKey ? 'heute' : fmtDate(k)}</div>
+      <div class="dr-side${k < todayKey ? ' overdue' : ''}">${dueEditHtml(t, k === todayKey ? 'heute' : fmtDate(k))}</div>
     </div>`;
   }).join('') + (due.length > 12 ? `<div class="dash-empty">+ ${due.length - 12} weitere – <a href="#" onclick="switchToTab('tasks'); return false;">alle anzeigen</a></div>` : '')
     : `<div class="dash-empty">Nichts fällig heute. 👍</div>`;
@@ -2909,7 +2959,7 @@ function renderTaskListInline(list) {
       <input type="checkbox" ${t.erledigt?'checked':''} onchange="toggleTask('${t.id}', this.checked)">
       <div style="flex:1;">
         <div class="task-text">${escapeHtml(t.text||'')}</div>
-        ${t.faelligAm ? `<div class="task-meta ${(!t.erledigt && t.faelligAm < today) ? 'overdue' : ''}">Fällig: ${fmtDate(t.faelligAm)}</div>` : ''}
+        ${t.faelligAm ? `<div class="task-meta ${(!t.erledigt && t.faelligAm < today) ? 'overdue' : ''}">${t.erledigt ? 'Fällig: ' + fmtDate(t.faelligAm) : dueEditHtml(t, 'Fällig: ' + fmtDate(t.faelligAm) + ' ✎')}</div>` : ''}
         ${renderAttachmentLinks(t)}
       </div>
       ${t.erledigt ? '' : `<button class="small" title="Dokument anhängen" onclick="pickFilesForTask('${t.id}')">📎 +</button>`}
@@ -3203,7 +3253,7 @@ function renderTasks() {
       <input type="checkbox" onchange="toggleTask('${t.id}', this.checked)">
       <div style="flex:1;">
         <div class="task-text">${escapeHtml(t.text||'')} ${withContactName(t) ? `— <span style="color:var(--gold-soft)">${escapeHtml(withContactName(t))}</span>` : ''}</div>
-        ${t.faelligAm ? `<div class="task-meta ${t.faelligAm < today ? 'overdue' : ''}">Fällig: ${fmtDate(t.faelligAm)}</div>` : ''}
+        <div class="task-meta ${t.faelligAm && t.faelligAm < today ? 'overdue' : ''}">${dueEditHtml(t, t.faelligAm ? 'Fällig: ' + fmtDate(t.faelligAm) + ' ✎' : '+ Datum setzen')}</div>
         ${renderAttachmentLinks(t)}
       </div>
       <button class="small" title="Dokument anhängen" onclick="pickFilesForTask('${t.id}')">📎 +</button>
