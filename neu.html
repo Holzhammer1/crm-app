@@ -3900,7 +3900,9 @@ function renderCalendar() {
           <div style="font-size:12px; display:flex; align-items:center; gap:8px;">
             ${c
               ? `<span style="color:var(--gold-soft);">${escapeHtml(c.name)}</span> <a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">ändern</a>`
-              : `<a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">+ Kontakt zuordnen</a>`}
+              : (() => { const sg = suggestContactsForEvent(e)[0];
+                  return (sg ? `<span style="color:var(--cream-dim);">Vorschlag:</span> <a href="#" title="Übernehmen" onclick="acceptEventSuggestion('${e.id}', '${sg.id}'); return false;" style="color:var(--gold-soft); font-weight:600;">✓ ${escapeHtml(sg.firma || sg.name || '')}</a> `
+                    : '') + `<a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">${sg ? 'anderer' : '+ Kontakt zuordnen'}</a>`; })()}
             <a href="#" onclick="openEventModal('${e.id}'); return false;" style="color:var(--cream-dim);">bearbeiten</a>
           </div>
         </div>
@@ -3910,6 +3912,44 @@ function renderCalendar() {
 }
 
 // ---------- Termin-Kontakt-Zuordnung ----------
+// Vorschlag aus Titel und Ort des Termins: Firmen-/Namensteile, die im Text vorkommen.
+const SUGGEST_STOP = new Set(['ag','gmbh','sa','sagl','spa','s.p.a.','srl','s.r.l.','kg','co','und','the','der','die','das','von','mit','für',
+  'service','services','haushalt','hotel','restaurant','shop','store','group','holding','schweiz','suisse','swiss','international',
+  'trading','handel','design','home','team','meeting','termin','besuch','call','lieferung','versand','event','messe','zürich','zurich']);
+function suggestTokens(str) {
+  return String(str || '').toLowerCase().split(/[\s,.;:()\/\-–|]+/)
+    .filter(w => (w.length >= 4 || w.includes('&')) && !SUGGEST_STOP.has(w));
+}
+function suggestContactsForEvent(e) {
+  if (!e) return [];
+  const hay = ' ' + `${e.titel || ''} ${e.ort || ''}`.toLowerCase().replace(/[,.;:()\/\-–|]+/g, ' ') + ' ';
+  const words = new Set(hay.trim().split(/\s+/));
+  const scored = [];
+  contacts.forEach(c => {
+    const isEmp = contactType(c) === 'mitarbeiter';
+    let score = 0;
+    const firma = (c.firma || '').toLowerCase().trim();
+    const name = (c.name || '').toLowerCase().trim();
+    if (firma && firma.length >= 4 && hay.includes(' ' + firma + ' ')) score += 10;
+    if (!isEmp && name && name !== firma && name.length >= 4 && hay.includes(' ' + name + ' ')) score += 10;
+    const toks = new Set([...suggestTokens(c.firma), ...(isEmp ? [] : suggestTokens(c.name))]);
+    toks.forEach(t => { if (words.has(t)) score += Math.min(t.length, 8); });
+    // Vorname eines Mitarbeiters im Titel -> schwacher Hinweis
+    if (isEmp && name) { const first = name.split(/\s+/)[0]; if (first.length >= 4 && words.has(first)) score += 3; }
+    if (score >= 3) scored.push({ c, score: score + (c.status === 'produzent' ? 0 : 0.5) });
+  });
+  scored.sort((a, b) => b.score - a.score);
+  // Mitarbeiter auf ihre Firma abbilden? Nein – Person direkt vorschlagen, Firma ist verknüpft.
+  const seen = new Set();
+  return scored.filter(x => !seen.has(x.c.id) && seen.add(x.c.id)).slice(0, 3).map(x => x.c);
+}
+async function acceptEventSuggestion(eventId, contactId) {
+  if (!fbDb) return;
+  await fbDb.collection('crmEvents').doc(eventId).update({ contactId });
+  toast('Termin zugeordnet.');
+  touchContact(contactId);
+}
+
 let eventAssignId = null;
 
 function openEventAssignModal(eventId) {
@@ -3927,13 +3967,23 @@ function openEventAssignModal(eventId) {
 function renderEventAssignResults() {
   const q = document.getElementById('eventAssignSearch').value.trim().toLowerCase();
   const resultsEl = document.getElementById('eventAssignResults');
-  if (!q) { resultsEl.innerHTML = `<div class="empty-state" style="padding:12px;">Namen eintippen zum Suchen…</div>`; return; }
-  const matches = contacts.filter(c =>
-    (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q)
-  ).slice(0, 8);
+  let matches;
+  let head = '';
+  if (!q) {
+    const ev = (eventAssignId && !phoneEmployeeAssignId && !companyLinkContactId && !phoneContactAssignId && !reviewDocAssignId)
+      ? events.find(x => x.id === eventAssignId) : null;
+    matches = ev ? suggestContactsForEvent(ev) : [];
+    if (!matches.length) { assignResultIds = []; resultsEl.innerHTML = `<div class="empty-state" style="padding:12px;">Namen eintippen zum Suchen…</div>`; return; }
+    head = `<div style="font-size:11.5px; color:var(--gold-soft); font-weight:600; margin:2px 4px 4px;">Vorschlag – Enter übernimmt den ersten</div>`;
+  } else {
+    matches = contacts.filter(c =>
+      (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q)
+    ).sort((a, b) => (contactType(a) === 'mitarbeiter') - (contactType(b) === 'mitarbeiter')).slice(0, 8);
+  }
+  assignResultIds = matches.map(c => c.id);
   if (!matches.length) { resultsEl.innerHTML = `<div class="empty-state" style="padding:12px;">Keine Treffer.</div>`; return; }
-  resultsEl.innerHTML = matches.map(c => `
-    <div class="row-with-avatar" style="padding:8px 4px; cursor:pointer; border-bottom:1px solid var(--anthracite-700);" onclick="handleAssignSelection('${c.id}')">
+  resultsEl.innerHTML = head + matches.map((c, i) => `
+    <div class="row-with-avatar" style="padding:8px 4px; cursor:pointer; border-bottom:1px solid var(--anthracite-700);${i === 0 ? ' background:var(--anthracite-700); border-radius:6px;' : ''}" onclick="handleAssignSelection('${c.id}')">
       ${avatarHtml(c, 'small')}
       <div>
         <div style="font-size:13.5px;">${escapeHtml(c.name || '')}</div>
@@ -3944,6 +3994,16 @@ function renderEventAssignResults() {
 }
 
 let companyLinkContactId = null;
+let assignResultIds = [];
+// Suchfeld im Zuordnen-Fenster: sofort tippbereit, Enter nimmt den ersten Treffer, Esc schliesst
+new MutationObserver(() => {
+  const bd = document.getElementById('eventAssignModalBackdrop');
+  if (bd && bd.classList.contains('active')) setTimeout(() => document.getElementById('eventAssignSearch').focus(), 30);
+}).observe(document.getElementById('eventAssignModalBackdrop'), { attributes: true, attributeFilter: ['class'] });
+document.getElementById('eventAssignSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && assignResultIds.length) { e.preventDefault(); handleAssignSelection(assignResultIds[0]); }
+  else if (e.key === 'Escape') document.getElementById('eventAssignModalBackdrop').classList.remove('active');
+});
 
 function openCompanyLinkModal(contactId) {
   companyLinkContactId = contactId;
