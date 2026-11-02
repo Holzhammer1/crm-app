@@ -86,6 +86,9 @@
   .dash-row input[type=checkbox] { width: auto; margin: 0; flex: none; }
   .dash-day { font-size: 11.5px; color: var(--gold-soft); margin: 8px 0 0; font-weight: 600; }
   .dash-day:first-child { margin-top: 0; }
+  .dash-sub { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; margin: 10px 0 2px; color: var(--stage); }
+  .dash-sub:first-child { margin-top: 0; }
+  .dash-sub a { font-weight: 400; color: var(--cream-dim); font-size: 12px; }
   .dash-empty { color: var(--cream-dim); font-size: 13px; padding: 6px 0; }
   .dash-hello { font-family: Georgia, serif; font-size: 20px; margin: 0 0 12px; color: var(--cream); }
   .dash-hello span { color: var(--cream-dim); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 13px; margin-left: 8px; }
@@ -481,11 +484,13 @@
     <div class="dash-grid">
       <div>
         <div class="panel"><h2>Heute &amp; überfällig <a href="#" onclick="switchToTab('tasks'); return false;">alle Aufgaben ›</a></h2><div id="dashDue"></div></div>
+        <div class="panel" id="dashWakePanel"><h2>Kunden nachfassen &amp; reaktivieren</h2><div id="dashWake"></div></div>
         <div class="panel"><h2>Key Accounts – jetzt melden <a href="#" onclick="switchToTab('keyaccounts'); return false;">alle ›</a></h2><div id="dashKa"></div></div>
       </div>
       <div>
         <div class="panel"><h2>Nächste Termine <a href="#" onclick="switchToTab('calendar'); return false;">Kalender ›</a></h2><div id="dashEvents"></div></div>
-        <div class="panel"><h2>Zuletzt aktiv <a href="#" onclick="switchToTab('contacts'); return false;">alle Kontakte ›</a></h2><div id="dashRecent"></div></div>
+        <div class="panel"><h2>Kunden – zuletzt aktiv <a href="#" onclick="switchToTab('contacts'); return false;">alle Kontakte ›</a></h2><div id="dashRecent"></div></div>
+        <div class="panel"><h2>Produzenten &amp; Lieferanten <a href="#" onclick="setContactTypeFilter('produzent'); switchToTab('contacts'); return false;">alle ›</a></h2><div id="dashProducers"></div></div>
       </div>
     </div>
   </div>
@@ -506,6 +511,7 @@
         <option value="firma">Firmen</option>
         <option value="mitarbeiter">Mitarbeiter</option>
         <option value="privat">Privat</option>
+        <option value="produzent">Produzenten / Lieferanten</option>
       </select>
       <select id="brandFilter" onchange="setBrandFilter(this.value)" title="Nach Marke filtern"></select>
       <div class="sort-toggle" id="contactLayoutToggle" title="Ansicht">
@@ -1145,6 +1151,7 @@ async function fbLoadAll() {
 
 // ---------- Dashboard ----------
 let dashPending = false;
+const dashExpanded = {};
 function scheduleDashboard() {
   if (dashPending) return;
   dashPending = true;
@@ -1173,14 +1180,17 @@ function renderDashboard() {
   const kas = contacts.filter(isKeyAccount).map(c => ({ c, st: kaStatus(c) }));
   const kaAlert = kas.filter(x => x.st.ampel !== 'gruen').sort((a, b) => a.st.score - b.st.score);
   const kaRed = kaAlert.filter(x => x.st.ampel === 'rot').length;
-  const aktiv = contacts.filter(c => c.status === 'aktiv' && contactType(c) !== 'mitarbeiter').length;
+  const isCustomerRow = c => contactType(c) !== 'mitarbeiter' && c.status !== 'produzent';
+  const byOldest = (a, b) => (Date.parse(a.lastActivityAt || 0) || 0) - (Date.parse(b.lastActivityAt || 0) || 0);
+  const nachfassen = contacts.filter(c => isCustomerRow(c) && c.status === 'nachfassen').sort(byOldest);
+  const schlafend = contacts.filter(c => isCustomerRow(c) && c.status === 'schlafend').sort(byOldest);
 
   const kpi = (v, l, view, warn) => `<div class="dash-kpi${warn ? ' warn' : ''}" onclick="switchToTab('${view}')"><div class="kv">${v}</div><div class="kl">${l}</div></div>`;
   kpiEl.innerHTML =
     kpi(due.length, 'heute fällig / überfällig', 'tasks', due.length > 0) +
     kpi(openFu.length, 'offene Follow-ups', 'followups', false) +
     kpi(kaRed, 'Key Accounts überfällig', 'keyaccounts', kaRed > 0) +
-    kpi(aktiv, 'aktive Kunden', 'contacts', false);
+    `<div class="dash-kpi${nachfassen.length ? ' warn' : ''}" onclick="document.getElementById('dashWakePanel').scrollIntoView({behavior:'smooth', block:'start'})"><div class="kv">${nachfassen.length}<span style="font-size:15px; color:var(--cream-dim);"> / ${schlafend.length}</span></div><div class="kl">nachfassen / schlafend</div></div>`;
 
   const nameOf = id => { const c = contacts.find(x => x.id === id); return c ? (c.firma || c.name || '') : ''; };
 
@@ -1234,8 +1244,32 @@ function renderDashboard() {
     }).join('');
   }
 
-  // Zuletzt aktiv
-  const recent = contacts.filter(c => c.lastActivityAt && contactType(c) !== 'mitarbeiter')
+  // Kunden nachfassen & schlafend (am längsten ohne Kontakt zuerst)
+  const wakeRow = c => `<div class="dash-row click" onclick="dashOpenContact('${c.id}')">
+      <div class="dr-main">${escapeHtml(c.firma || c.name || '')}</div>
+      <div class="dr-side">${escapeHtml([c.ort, c.lastActivityAt ? 'zuletzt ' + relativeDays(c.lastActivityAt).replace(' aktiv', '') : 'nie kontaktiert'].filter(Boolean).join(' · '))}</div>
+    </div>`;
+  const wakeGroup = (key, label, color, list) => {
+    if (!list.length) return '';
+    const all = dashExpanded[key];
+    return `<div class="dash-sub" style="--stage:${color};">${label} (${list.length})${list.length > 6 ? ` <a href="#" onclick="dashExpanded['${key}'] = !dashExpanded['${key}']; renderDashboard(); return false;">${all ? 'weniger' : 'alle anzeigen'}</a>` : ''}</div>`
+      + (all ? list : list.slice(0, 6)).map(wakeRow).join('');
+  };
+  document.getElementById('dashWake').innerHTML = (nachfassen.length || schlafend.length)
+    ? wakeGroup('nachfassen', 'Kunde nachfassen', 'var(--red)', nachfassen) + wakeGroup('schlafend', 'Schlafende Kunden', '#5b7a99', schlafend)
+    : `<div class="dash-empty">Keine Kunden zum Nachfassen. 👍</div>`;
+
+  // Produzenten & Lieferanten
+  const producers = contacts.filter(c => c.status === 'produzent' && contactType(c) !== 'mitarbeiter')
+    .sort((a, b) => (Date.parse(b.lastActivityAt || 0) || 0) - (Date.parse(a.lastActivityAt || 0) || 0)).slice(0, 5);
+  document.getElementById('dashProducers').innerHTML = producers.length ? producers.map(c => `
+    <div class="dash-row click" onclick="dashOpenContact('${c.id}')">
+      <div class="dr-main">${escapeHtml(c.firma || c.name || '')}</div>
+      <div class="dr-side">${escapeHtml(relativeDays(c.lastActivityAt))}</div>
+    </div>`).join('') : `<div class="dash-empty">Noch keine Produzenten erfasst.</div>`;
+
+  // Kunden – zuletzt aktiv (ohne Produzenten)
+  const recent = contacts.filter(c => c.lastActivityAt && contactType(c) !== 'mitarbeiter' && c.status !== 'produzent')
     .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt)).slice(0, 6);
   document.getElementById('dashRecent').innerHTML = recent.length ? recent.map(c => `
     <div class="dash-row click" onclick="dashOpenContact('${c.id}')">
@@ -2151,7 +2185,8 @@ function renderContacts() {
   let filtered = contacts.filter(c => {
     if (!matchesBrandFilter(c)) return false;
     const t = contactType(c);
-    if (contactTypeFilter === 'firma' && t !== 'firma') return false;
+    if (contactTypeFilter === 'produzent') { if (c.status !== 'produzent' || t === 'mitarbeiter') return false; return !q || contactSearchScore(c, q) > 0; }
+    if (contactTypeFilter === 'firma' && (t !== 'firma' || c.status === 'produzent')) return false;
     if (contactTypeFilter === 'privat' && t !== 'privat') return false;
     if (contactTypeFilter === 'mitarbeiter' && t !== 'mitarbeiter' && t !== 'unklar') return false;
     // «Alle»: verknüpfte Mitarbeiter stehen bei ihrer Firma, nicht in der Liste -
