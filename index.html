@@ -861,6 +861,7 @@
     <input type="text" id="eventAssignSearch" placeholder="Kontakt suchen…" oninput="renderEventAssignResults()">
     <div id="eventAssignResults" style="max-height:280px; overflow-y:auto; margin-top:10px;"></div>
     <div class="form-actions">
+      <button id="btnEventNoContact" style="margin-right:auto;" onclick="setEventNoContact(eventAssignId)">✕ Kein Kontakt</button>
       <button id="btnCancelEventAssign">Schliessen</button>
     </div>
   </div>
@@ -3989,9 +3990,11 @@ function renderCalendar() {
           <div style="font-size:12px; display:flex; align-items:center; gap:8px;">
             ${c
               ? `<span style="color:var(--gold-soft);">${escapeHtml(c.name)}</span> <a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">ändern</a>`
+              : e.noContact
+              ? `<span style="color:var(--cream-dim);">kein Kontakt</span> <a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">ändern</a>`
               : (() => { const sg = suggestContactsForEvent(e)[0];
                   return (sg ? `<span style="color:var(--cream-dim);">Vorschlag:</span> <a href="#" title="Übernehmen" onclick="acceptEventSuggestion('${e.id}', '${sg.id}'); return false;" style="color:var(--gold-soft); font-weight:600;">✓ ${escapeHtml(sg.firma || sg.name || '')}</a> `
-                    : '') + `<a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">${sg ? 'anderer' : '+ Kontakt zuordnen'}</a>`; })()}
+                    : '') + `<a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">${sg ? 'anderer' : '+ Kontakt zuordnen'}</a> <a href="#" title="Termin ohne Kontakt – kein Vorschlag mehr" onclick="setEventNoContact('${e.id}'); return false;" style="color:var(--cream-dim);">✕ keiner</a>`; })()}
             <a href="#" onclick="openEventModal('${e.id}'); return false;" style="color:var(--cream-dim);">bearbeiten</a>
           </div>
         </div>
@@ -4004,10 +4007,12 @@ function renderCalendar() {
 // Vorschlag aus Titel und Ort des Termins: Firmen-/Namensteile, die im Text vorkommen.
 const SUGGEST_STOP = new Set(['ag','gmbh','sa','sagl','spa','s.p.a.','srl','s.r.l.','kg','co','und','the','der','die','das','von','mit','für',
   'service','services','haushalt','hotel','restaurant','shop','store','group','holding','schweiz','suisse','swiss','international',
-  'trading','handel','design','home','team','meeting','termin','besuch','call','lieferung','versand','event','messe','zürich','zurich']);
+  'trading','handel','design','home','team','meeting','termin','besuch','call','lieferung','versand','event','messe','zürich','zurich',
+  'ambiente','raum','küche','kueche','haus','glas','porzellan','geschenke','gastro','common','journey','business','agent','offerte',
+  'präsentation','apero','apéro','essen','lunch','dinner','abendessen','telefon','anruf','kunde','kunden','bestellung','muster']);
 function suggestTokens(str) {
   return String(str || '').toLowerCase().split(/[\s,.;:()\/\-–|]+/)
-    .filter(w => (w.length >= 4 || w.includes('&')) && !SUGGEST_STOP.has(w));
+    .filter(w => (w.length >= 5 || w.includes('&')) && !SUGGEST_STOP.has(w));
 }
 function suggestContactsForEvent(e) {
   if (!e) return [];
@@ -4032,9 +4037,15 @@ function suggestContactsForEvent(e) {
   const seen = new Set();
   return scored.filter(x => !seen.has(x.c.id) && seen.add(x.c.id)).slice(0, 3).map(x => x.c);
 }
+async function setEventNoContact(eventId) {
+  if (!fbDb || !eventId) return;
+  await fbDb.collection('crmEvents').doc(eventId).update({ contactId: null, noContact: true });
+  document.getElementById('eventAssignModalBackdrop').classList.remove('active');
+  toast('Termin ohne Kontakt gespeichert.');
+}
 async function acceptEventSuggestion(eventId, contactId) {
   if (!fbDb) return;
-  await fbDb.collection('crmEvents').doc(eventId).update({ contactId });
+  await fbDb.collection('crmEvents').doc(eventId).update({ contactId, noContact: false });
   toast('Termin zugeordnet.');
   touchContact(contactId);
 }
@@ -4056,6 +4067,8 @@ function openEventAssignModal(eventId) {
 function renderEventAssignResults() {
   const q = document.getElementById('eventAssignSearch').value.trim().toLowerCase();
   const resultsEl = document.getElementById('eventAssignResults');
+  const isEventMode = !!(eventAssignId && !phoneEmployeeAssignId && !companyLinkContactId && !phoneContactAssignId && !reviewDocAssignId);
+  document.getElementById('btnEventNoContact').style.display = isEventMode ? '' : 'none';
   let matches;
   let head = '';
   if (!q) {
@@ -4138,7 +4151,7 @@ function handleAssignSelection(contactId) {
 
 async function assignEventToContact(contactId) {
   if (!eventAssignId || !fbDb) return;
-  await fbDb.collection('crmEvents').doc(eventAssignId).update({ contactId });
+  await fbDb.collection('crmEvents').doc(eventAssignId).update({ contactId, noContact: false });
   document.getElementById('eventAssignModalBackdrop').classList.remove('active');
   toast('Termin zugeordnet.');
   touchContact(contactId);
