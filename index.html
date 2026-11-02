@@ -515,12 +515,11 @@
     <div class="dash-kpis" id="dashKpis"></div>
     <div class="dash-grid">
       <div>
-        <div class="panel"><h2>Heute &amp; überfällig <a href="#" onclick="switchToTab('tasks'); return false;">alle Aufgaben ›</a></h2><div id="dashDue"></div></div>
+        <div class="panel"><h2>Aufgaben – nächste 7 Tage <a href="#" onclick="switchToTab('tasks'); return false;">alle Aufgaben ›</a></h2><div id="dashDue"></div></div>
         <div class="panel"><h2>Key Accounts – jetzt melden <a href="#" onclick="switchToTab('keyaccounts'); return false;">alle ›</a></h2><div id="dashKa"></div></div>
       </div>
       <div>
-        <div class="panel"><h2>Nächste Termine <a href="#" onclick="switchToTab('calendar'); return false;">Kalender ›</a></h2><div id="dashEvents"></div></div>
-        <div class="panel"><h2>Produzenten &amp; Lieferanten <a href="#" onclick="setContactTypeFilter('produzent'); switchToTab('contacts'); return false;">alle ›</a></h2><div id="dashProducers"></div></div>
+        <div class="panel"><h2>Termine – nächste 7 Tage <a href="#" onclick="switchToTab('calendar'); return false;">Kalender ›</a></h2><div id="dashEvents"></div></div>
       </div>
     </div>
     <div class="panel" id="dashWakePanel" style="padding:14px 16px;"><h2>Kunden nachfassen &amp; reaktivieren</h2><div id="dashWake" class="dash-wake"></div></div>
@@ -719,10 +718,14 @@
   <div class="view" id="view-calendar">
     <div class="panel">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-        <button class="small" onclick="shiftCalendarMonth(-1)">‹ Vorheriger</button>
+        <button class="small" onclick="shiftCalendarMonth(-1)">‹ Zurück</button>
         <h2 id="calendarMonthLabel" style="margin:0;"></h2>
-        <button class="small" onclick="shiftCalendarMonth(1)">Nächster ›</button>
+        <button class="small" onclick="shiftCalendarMonth(1)">Weiter ›</button>
         <button class="small" onclick="calendarGoToday()">Heute</button>
+      </div>
+      <div class="sort-toggle" id="calModeToggle" style="margin-bottom:12px;">
+        <button data-mode="week" onclick="setCalendarMode('week')">7 Tage</button>
+        <button data-mode="month" onclick="setCalendarMode('month')">Monat</button>
       </div>
       <div style="margin-bottom:14px;">
         <button class="primary" onclick="openEventModal(null)">+ Termin</button>
@@ -1425,7 +1428,9 @@ function renderDashboard() {
 
   const openTasks = tasks.filter(t => !t.erledigt);
   const openFu = openTasks.filter(t => t.followupEventId || t.keyAccountId);
-  const due = openTasks.filter(t => !t.keyAccountId && t.faelligAm && localDayKey(t.faelligAm) <= todayKey)
+  const weekEndKey = localDayKey(new Date(now.getTime() + 7 * 86400000));
+  const dueNow = openTasks.filter(t => !t.keyAccountId && t.faelligAm && localDayKey(t.faelligAm) <= todayKey);
+  const due = openTasks.filter(t => !t.keyAccountId && t.faelligAm && localDayKey(t.faelligAm) <= weekEndKey)
     .sort((a, b) => (a.faelligAm || '').localeCompare(b.faelligAm || ''));
   const kas = contacts.filter(isKeyAccount).map(c => ({ c, st: kaStatus(c) }));
   const kaAlert = kas.filter(x => x.st.ampel !== 'gruen').sort((a, b) => a.st.score - b.st.score);
@@ -1438,7 +1443,7 @@ function renderDashboard() {
 
   const kpi = (v, l, view, warn) => `<div class="dash-kpi${warn ? ' warn' : ''}" onclick="switchToTab('${view}')"><div class="kv">${v}</div><div class="kl">${l}</div></div>`;
   kpiEl.innerHTML =
-    kpi(due.length, 'heute fällig / überfällig', 'tasks', due.length > 0) +
+    kpi(dueNow.length, 'heute fällig / überfällig', 'tasks', dueNow.length > 0) +
     kpi(openFu.length, 'offene Follow-ups', 'followups', false) +
     kpi(kaRed, 'Key Accounts überfällig', 'keyaccounts', kaRed > 0) +
     `<div class="dash-kpi${nachfassen.length ? ' warn' : ''}" onclick="document.getElementById('dashWakePanel').scrollIntoView({behavior:'smooth', block:'start'})"><div class="kv">${nachfassen.length}<span style="font-size:15px; color:var(--cream-dim);"> / ${schlafend.length}</span></div><div class="kl">nachfassen / schlafend</div></div>`;
@@ -1447,12 +1452,13 @@ function renderDashboard() {
 
   // Heute & überfällig
   const dueEl = document.getElementById('dashDue');
-  const dueLimit = dashExpanded.due ? due.length : 8;
+  const dueLimit = dashExpanded.due ? due.length : 10;
   dueEl.innerHTML = due.length ? due.slice(0, dueLimit).map(t => {
     const k = localDayKey(t.faelligAm);
     const who = nameOf(t.contactId);
     const daysLate = Math.round((Date.parse(todayKey) - Date.parse(k)) / 86400000);
-    const when = k === todayKey ? 'heute' : daysLate === 1 ? 'seit gestern' : `${daysLate} T. über`;
+    const when = k === todayKey ? 'heute' : daysLate === 1 ? 'seit gestern' : daysLate > 0 ? `${daysLate} T. über`
+      : daysLate === -1 ? 'morgen' : new Date(k + 'T12:00').toLocaleDateString('de-CH', { weekday: 'short', day: '2-digit', month: '2-digit' });
     const isFu = !!t.followupEventId;
     const label = isFu ? `<span class="dash-tag">Follow-up</span>${escapeHtml(t.followupEventTitle || 'nach Termin')}` : escapeHtml(t.text || '');
     return `<div class="dash-row">
@@ -1461,8 +1467,8 @@ function renderDashboard() {
       ${taskEditBtn(t.id)}
       <div class="dr-side${k < todayKey ? ' overdue' : ''}" style="min-width:72px; text-align:right;">${dueEditHtml(t, when)}</div>
     </div>`;
-  }).join('') + (due.length > 8 ? `<div class="dash-empty"><a href="#" onclick="dashExpanded.due = !dashExpanded.due; renderDashboard(); return false;">${dashExpanded.due ? 'weniger anzeigen' : `+ ${due.length - 8} weitere anzeigen`}</a></div>` : '')
-    : `<div class="dash-empty">Nichts fällig heute. 👍</div>`;
+  }).join('') + (due.length > 10 ? `<div class="dash-empty"><a href="#" onclick="dashExpanded.due = !dashExpanded.due; renderDashboard(); return false;">${dashExpanded.due ? 'weniger anzeigen' : `+ ${due.length - 10} weitere anzeigen`}</a></div>` : '')
+    : `<div class="dash-empty">Keine Aufgaben in den nächsten 7 Tagen. 👍</div>`;
 
   // Key Accounts
   const kaEl = document.getElementById('dashKa');
@@ -1485,7 +1491,7 @@ function renderDashboard() {
     evEl.innerHTML = `<div class="dash-empty">Keine Termine in den nächsten 7 Tagen.</div>`;
   } else {
     let lastDay = null;
-    evEl.innerHTML = upcoming.slice(0, 6).map(e => {
+    evEl.innerHTML = upcoming.map(e => {
       const k = localDayKey(e.start);
       let head = '';
       if (k !== lastDay) {
@@ -1499,7 +1505,7 @@ function renderDashboard() {
         <div class="dr-side" style="min-width:38px;">${time}</div>
         <div class="dr-main">${escapeHtml(e.titel || '')}${who ? ` <span class="dr-who">· ${escapeHtml(who)}</span>` : ''}</div>
       </div>`;
-    }).join('') + (upcoming.length > 6 ? `<div class="dash-empty"><a href="#" onclick="switchToTab('calendar'); return false;">+ ${upcoming.length - 6} weitere im Kalender</a></div>` : '');
+    }).join('');
   }
 
   // Kunden nachfassen & schlafend (am längsten ohne Kontakt zuerst)
@@ -1521,7 +1527,8 @@ function renderDashboard() {
   // Produzenten & Lieferanten
   const producers = contacts.filter(c => c.status === 'produzent' && contactType(c) !== 'mitarbeiter')
     .sort((a, b) => (Date.parse(b.lastActivityAt || 0) || 0) - (Date.parse(a.lastActivityAt || 0) || 0)).slice(0, 5);
-  document.getElementById('dashProducers').innerHTML = producers.length ? producers.map(c => `
+  const prodEl = document.getElementById('dashProducers');
+  if (prodEl) prodEl.innerHTML = producers.length ? producers.map(c => `
     <div class="dash-row click" onclick="dashOpenContact('${c.id}')">
       <div class="dr-main">${escapeHtml(c.firma || c.name || '')}</div>
       <div class="dr-side">${escapeHtml(relativeDays(c.lastActivityAt))}</div>
@@ -3955,7 +3962,15 @@ async function importContacts() {
 }
 
 // ---------- Kalender-Tab ----------
-let calendarMonthOffset = 0; // 0 = aktueller Monat, -1 = letzter Monat, +1 = nächster, ...
+let calendarMonthOffset = 0; // 0 = aktueller Monat/Woche, -1 = davor, +1 = danach
+let calendarMode = 'week';
+try { calendarMode = localStorage.getItem('crmCalMode') || 'week'; } catch (e) {}
+function setCalendarMode(m) {
+  calendarMode = m;
+  calendarMonthOffset = 0;
+  try { localStorage.setItem('crmCalMode', m); } catch (e) {}
+  renderCalendar();
+}
 
 function shiftCalendarMonth(delta) {
   calendarMonthOffset += delta;
@@ -3994,15 +4009,22 @@ function renderCalendar() {
   const monthDate = getCalendarMonthDate();
   const monthKey = localDayKey(monthDate).slice(0, 7); // "YYYY-MM"
   const todayKey = localDayKey(new Date());
+  const isWeek = calendarMode === 'week';
+  const wStart = new Date(); wStart.setHours(12, 0, 0, 0); wStart.setDate(wStart.getDate() + 7 * calendarMonthOffset);
+  const weekKeys = Array.from({ length: 7 }, (_, i) => { const d = new Date(wStart); d.setDate(d.getDate() + i); return localDayKey(d); });
+  const inRange = k => isWeek ? (k >= weekKeys[0] && k <= weekKeys[6]) : k.slice(0, 7) === monthKey;
+  document.querySelectorAll('#calModeToggle button').forEach(b => b.classList.toggle('active', b.dataset.mode === calendarMode));
   const labelEl = document.getElementById('calendarMonthLabel');
-  if (labelEl) labelEl.textContent = monthDate.toLocaleDateString('de-CH', { month: 'long', year: 'numeric' });
+  if (labelEl) labelEl.textContent = isWeek
+    ? (calendarMonthOffset === 0 ? 'Nächste 7 Tage' : `${fmtDate(weekKeys[0])} – ${fmtDate(weekKeys[6])}`)
+    : monthDate.toLocaleDateString('de-CH', { month: 'long', year: 'numeric' });
 
   if (!events.length) {
     list.innerHTML = `<div class="empty-state">Noch keine Termine synchronisiert.<div class="hint">Sobald der Kalender-Sync eingerichtet und einmal gelaufen ist, erscheinen hier deine Termine automatisch.</div></div>`;
     return;
   }
   const sorted = [...events]
-    .filter(e => e.start && localDayKey(e.start).slice(0, 7) === monthKey)
+    .filter(e => e.start && inRange(localDayKey(e.start)))
     .sort((a, b) => a.start.localeCompare(b.start));
 
   const groups = {};
@@ -4011,7 +4033,8 @@ function renderCalendar() {
     (groups[day] = groups[day] || []).push(e);
   }
   // Im aktuellen Monat den heutigen Tag immer anzeigen, auch ohne Termine.
-  if (todayKey.slice(0, 7) === monthKey && !groups[todayKey]) groups[todayKey] = [];
+  if (isWeek) weekKeys.forEach(k => { if (!groups[k]) groups[k] = []; });
+  else if (todayKey.slice(0, 7) === monthKey && !groups[todayKey]) groups[todayKey] = [];
   if (!Object.keys(groups).length) {
     list.innerHTML = `<div class="empty-state">Keine Termine in diesem Monat.</div>`;
     return;
@@ -4021,8 +4044,8 @@ function renderCalendar() {
     const isPast = day < todayKey;
     return `
     <div ${isToday ? 'id="calendarToday"' : ''} style="margin-bottom:16px; ${isToday ? 'background:var(--anthracite-700); border-left:3px solid var(--gold); border-radius:6px; padding:10px 12px; scroll-margin-top:20px;' : ''} ${isPast ? 'opacity:0.55;' : ''}">
-      <div style="color:${isToday ? 'var(--cream)' : 'var(--gold-soft)'}; font-size:${isToday ? '14px' : '12.5px'}; font-weight:${isToday ? '700' : '400'}; margin-bottom:6px;">${isToday ? 'Heute · ' : ''}${fmtDate(day)}</div>
-      ${isToday && !groups[day].length ? `<div class="task-meta" style="font-weight:600;">Heute keine Termine.</div>` : ''}
+      <div style="color:${isToday ? 'var(--cream)' : 'var(--gold-soft)'}; font-size:${isToday ? '14px' : '12.5px'}; font-weight:${isToday ? '700' : '400'}; margin-bottom:6px;">${isToday ? 'Heute · ' : ''}${new Date(day + 'T12:00').toLocaleDateString('de-CH', { weekday: 'long' })}, ${fmtDate(day)}</div>
+      ${!groups[day].length ? `<div class="task-meta" ${isToday ? 'style="font-weight:600;"' : ''}>${isToday ? 'Heute keine Termine.' : 'keine Termine'}</div>` : ''}
       ${groups[day].map(e => {
         const c = e.contactId ? contacts.find(x => x.id === e.contactId) : null;
         return `
