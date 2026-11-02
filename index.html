@@ -1948,7 +1948,7 @@ function renderKeyAccountBox(c) {
     if (comp && isKeyAccount(comp)) {
       return `<div class="ka-box">${kaTagHtml(comp)} <span style="font-size:12.5px;">läuft über die Firma
         <a href="#" onclick="selectContact('${comp.id}'); return false;" style="color:var(--cream); text-decoration:underline;">${escapeHtml(comp.firma || comp.name || '')}</a></span>
-        <button class="small" style="margin-left:6px;" onclick="kaLogCall('${c.id}')">☎ Anruf notieren</button></div>`;
+        <button class="small" style="margin-left:6px;" onclick="openActivityModal('${c.id}', null, 'anruf')">📝 Kontakt notieren</button></div>`;
     }
     return '';  // Key Account nur bei Firmen
   }
@@ -1969,7 +1969,7 @@ function renderKeyAccountBox(c) {
     ${st ? `<div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
       ${kaTagHtml(c)}
       <span style="font-size:12.5px;">Letzter Kontakt: ${escapeHtml(kaLastText(st))}</span>
-      <button class="small" onclick="kaLogCall('${c.id}')">☎ Anruf notieren</button>
+      <button class="small" onclick="openActivityModal('${c.id}', null, 'anruf')">📝 Kontakt notieren</button>
     </div>
     <div style="font-size:11.5px; color:var(--cream-dim); margin-top:4px;">Zählt jeder Kontakt mit der Firma oder einem verknüpften Mitarbeiter. Anruf mit einer Person am besten bei ihr notieren.</div>` : ''}
   </div>`;
