@@ -1181,6 +1181,7 @@ async function fbLoadAll() {
   fbDb.collection('crmEmails').onSnapshot(snap => {
     emails = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     scheduleDashboard();
+    renderContacts();
     renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
@@ -1243,6 +1244,39 @@ function selectByMailSubject() {
 }
 
 // ---------- Letzte Notiz ----------
+// Gesendete Mails (aus dem Mail-Sync) automatisch den Kunden zuordnen:
+// über die genaue Adresse (Kontakt + seine Firma) oder die Firmen-Domain (z. B. @manor.ch).
+let sentMailIdx = null, sentMailIdxKey = null;
+function sentMailIndex() {
+  if (sentMailIdx && sentMailIdxKey && sentMailIdxKey[0] === emails && sentMailIdxKey[1] === contacts) return sentMailIdx;
+  const byAddr = new Map(), byDomain = new Map();
+  const add = (map, k, id) => { if (!map.has(k)) map.set(k, new Set()); map.get(k).add(id); };
+  contacts.forEach(c => {
+    const isEmp = contactType(c) === 'mitarbeiter' && c.firmaKontaktId;
+    [c.email, ...(c.weitereEmails || [])].filter(Boolean).forEach(m => {
+      const a = String(m).toLowerCase().trim();
+      add(byAddr, a, c.id); if (isEmp) add(byAddr, a, c.firmaKontaktId);
+      const d = a.split('@')[1];
+      if (d && !NO_LOGO_DOMAINS.has(d) && !isEmp) add(byDomain, d, c.id);
+    });
+    (c.mitarbeiter || []).forEach(m => m.email && add(byAddr, String(m.email).toLowerCase().trim(), c.id));
+    const wd = domainFromWebsite(c.website);
+    if (wd && !NO_LOGO_DOMAINS.has(wd) && !isEmp) add(byDomain, wd.toLowerCase(), c.id);
+  });
+  const latest = new Map(); // contactId -> neueste gesendete Mail
+  emails.forEach(e => {
+    if (e.direction !== 'gesendet' || !e.date) return;
+    const ids = new Set();
+    [...(e.participants || []), e.to].map(mailAddrOf).filter(Boolean).forEach(a => {
+      const hit = byAddr.get(a) || byDomain.get(a.split('@')[1]);
+      if (hit) hit.forEach(id => ids.add(id));
+    });
+    ids.forEach(id => { const cur = latest.get(id); if (!cur || e.date > cur.date) latest.set(id, e); });
+  });
+  sentMailIdx = latest; sentMailIdxKey = [emails, contacts];
+  return latest;
+}
+
 function lastActivityFor(c) {
   if (!c) return null;
   const ids = new Set([c.id, ...contacts.filter(x => x.firmaKontaktId === c.id).map(x => x.id)]);
@@ -1250,6 +1284,11 @@ function lastActivityFor(c) {
   for (const a of activities) {
     if (!ids.has(a.contactId) || !a.createdAt) continue;
     if (!best || a.createdAt > best.createdAt) best = a;
+  }
+  const mail = sentMailIndex().get(c.id);
+  if (mail) {
+    const mIso = new Date(mail.date).toISOString();
+    if (!best || mIso > best.createdAt) best = { typ: 'email', createdAt: mIso, text: 'Mail: ' + (mail.subject || '(ohne Betreff)'), auto: true };
   }
   return best;
 }
@@ -1297,7 +1336,8 @@ function renderDashboard() {
   const kaAlert = kas.filter(x => x.st.ampel !== 'gruen').sort((a, b) => a.st.score - b.st.score);
   const kaRed = kaAlert.filter(x => x.st.ampel === 'rot').length;
   const isCustomerRow = c => contactType(c) !== 'mitarbeiter' && c.status !== 'produzent';
-  const byOldest = (a, b) => (Date.parse(a.lastActivityAt || 0) || 0) - (Date.parse(b.lastActivityAt || 0) || 0);
+  const touchT = c => { const a = lastActivityFor(c); return a ? (Date.parse(a.createdAt) || 0) : 0; };
+  const byOldest = (a, b) => touchT(a) - touchT(b);
   const nachfassen = contacts.filter(c => isCustomerRow(c) && c.status === 'nachfassen').sort(byOldest);
   const schlafend = contacts.filter(c => isCustomerRow(c) && c.status === 'schlafend').sort(byOldest);
 
@@ -1365,7 +1405,7 @@ function renderDashboard() {
   const wakeRow = c => `<div class="dash-row click" onclick="dashOpenContact('${c.id}')">
       <div class="dr-main">${escapeHtml(c.firma || c.name || '')}${lastNoteHtml(c)}</div>
       ${noteBtn(c.id)}
-      <div class="dr-side">${escapeHtml([c.ort, c.lastActivityAt ? 'zuletzt ' + relativeDays(c.lastActivityAt).replace(' aktiv', '') : 'nie kontaktiert'].filter(Boolean).join(' · '))}</div>
+      <div class="dr-side">${escapeHtml(c.ort || '')}</div>
     </div>`;
   const wakeGroup = (key, label, color, list) => {
     if (!list.length) return '';
