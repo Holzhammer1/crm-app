@@ -1168,6 +1168,7 @@ async function fbLoadAll() {
   // Offers/invoices/events: Collections existieren erst nach dem ersten Sync-Lauf.
   fbDb.collection('crmOffers').onSnapshot(snap => {
     offers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    scheduleAutoCloseTasks();
     renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
@@ -1356,10 +1357,49 @@ function noteBtn(id) {
   return `<button class="small note-btn" title="Kontakt notieren" onclick="event.stopPropagation(); openActivityModal('${id}')">📝</button>`;
 }
 
+// ---------- Auto-Erledigen von Key-Account- und Follow-up-Aufgaben ----------
+// Die Aufgaben legt followup_check.py einmal täglich an. Sobald im CRM ein Kontakt sichtbar ist
+// (Anruf/Mail/Meeting-Notiz, gesendete Mail, Offerte oder geplanter Termin), schliesst das CRM sie sofort selbst.
+let autoCloseTimer = null;
+const autoClosedIds = new Set();
+function scheduleAutoCloseTasks() {
+  clearTimeout(autoCloseTimer);
+  autoCloseTimer = setTimeout(autoCloseTasks, 1500);
+}
+async function autoCloseTasks() {
+  if (!fbDb) return;
+  const DAY = 86400000;
+  const toClose = [];
+  tasks.forEach(t => {
+    if (t.erledigt || autoClosedIds.has(t.id)) return;
+    if (t.keyAccountId) {
+      const c = contacts.find(x => x.id === t.keyAccountId) || contacts.find(x => x.id === t.contactId);
+      if (!c || !isKeyAccount(c)) return;
+      if (kaStatus(c).ampel === 'gruen') toClose.push({ t, why: 'Key Account wieder im Rhythmus' });
+    } else if (t.followupEventId) {
+      const c = contacts.find(x => x.id === t.contactId);
+      if (!c) return;
+      const evT = Date.parse(t.followupEventDate || '') || 0;
+      const { last, next } = kaTouches(c);
+      if ((last && last.t > evT + DAY / 2) || next) toClose.push({ t, why: last && last.t > evT ? last.label : 'Folgetermin geplant' });
+    }
+  });
+  for (const { t, why } of toClose) {
+    autoClosedIds.add(t.id);
+    try {
+      await fbDb.collection('crmTasks').doc(t.id).update({
+        erledigt: true, erledigtAm: new Date().toISOString(), erledigtDurch: 'CRM automatisch: ' + String(why || '').slice(0, 120)
+      });
+    } catch (e) { autoClosedIds.delete(t.id); }
+  }
+  if (toClose.length) toast(`${toClose.length} Aufgabe(n) automatisch erledigt – Kontakt war schon erfasst.`);
+}
+
 // ---------- Dashboard ----------
 let dashPending = false;
 const dashExpanded = {};
 function scheduleDashboard() {
+  scheduleAutoCloseTasks();
   if (dashPending) return;
   dashPending = true;
   requestAnimationFrame(() => { dashPending = false; renderDashboard(); });
