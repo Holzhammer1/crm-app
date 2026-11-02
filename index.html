@@ -29,7 +29,7 @@
     font-size: 14px;
     line-height: 1.5;
   }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 28px 20px 60px; }
   .masthead {
     display: flex; align-items: baseline; justify-content: space-between;
     border-bottom: 1px solid var(--anthracite-line);
@@ -42,11 +42,57 @@
   .masthead h1 em { font-style: italic; color: var(--gold-soft); }
   .masthead .meta { color: var(--cream-dim); font-size: 12.5px; }
 
-  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--anthracite-line); }
+  .tabs { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--anthracite-line); align-items: flex-end; }
   .tab {
-    padding: 10px 16px; cursor: pointer; color: var(--cream-dim);
-    font-size: 16px; font-weight: 700; border-bottom: 2px solid transparent; user-select: none;
+    padding: 9px 13px; cursor: pointer; color: var(--cream-dim); white-space: nowrap;
+    font-size: 14.5px; font-weight: 700; border-bottom: 2px solid transparent; user-select: none;
   }
+  .tabs .tab-spacer { flex: 1; }
+  .more-wrap { position: relative; }
+  .more-btn { padding: 9px 12px; cursor: pointer; color: var(--cream-dim); font-size: 14.5px; font-weight: 700; border-bottom: 2px solid transparent; user-select: none; white-space: nowrap; }
+  .more-btn:hover { color: var(--cream); }
+  .more-btn.active { color: var(--gold-soft); border-bottom-color: var(--gold); }
+  .more-menu { display: none; position: absolute; right: 0; top: calc(100% + 4px); z-index: 70; min-width: 190px;
+    background: var(--anthracite-800); border: 1px solid var(--anthracite-line); border-radius: 10px; box-shadow: 0 8px 28px rgba(38,35,25,0.14); padding: 6px; }
+  .more-menu.open { display: block; }
+  .more-menu .tab { display: flex; justify-content: space-between; align-items: center; border-bottom: none; border-radius: 6px; font-size: 13.5px; font-weight: 600; padding: 8px 10px; }
+  .more-menu .tab:hover { background: var(--anthracite-700); }
+  .more-menu .tab.active { background: color-mix(in srgb, var(--gold) 14%, var(--anthracite-800)); }
+  .sub-switch { margin-bottom: 14px; }
+  @media (max-width: 640px) { .tabs { overflow-x: auto; } .tab, .more-btn { font-size: 13.5px; padding: 8px 9px; } }
+
+  /* Dashboard */
+  .dash-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  @media (max-width: 720px) { .dash-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .dash-kpi { background: var(--anthracite-800); border: 1px solid var(--anthracite-line); border-radius: 10px; padding: 12px 14px; cursor: pointer; box-shadow: var(--shadow); }
+  .dash-kpi:hover { border-color: var(--gold); }
+  .dash-kpi .kv { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; color: var(--cream); }
+  .dash-kpi .kl { font-size: 12px; color: var(--cream-dim); margin-top: 2px; }
+  .dash-kpi.warn .kv { color: var(--red); }
+  .dash-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .dash-grid { grid-template-columns: 1fr; } }
+  .dash-grid > div { min-width: 0; }
+  .dash-grid .panel { margin-bottom: 16px; padding: 14px 16px; }
+  .dash-grid .panel h2 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .dash-grid .panel h2 a { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12px; color: var(--cream-dim); }
+  .dash-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--anthracite-700); font-size: 13px; min-width: 0; }
+  .dash-row:last-child { border-bottom: none; }
+  .dash-row .dr-main { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dash-row .dr-who { color: var(--gold-soft); cursor: pointer; }
+  .dash-row .dr-side { font-size: 12px; color: var(--cream-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .dash-row .dr-side.overdue { color: var(--red); font-weight: 600; }
+  .dash-row.click { cursor: pointer; }
+  .dash-row.click:hover .dr-main { color: var(--gold-soft); }
+  .dash-row input[type=checkbox] { width: auto; margin: 0; flex: none; }
+  .dash-day { font-size: 11.5px; color: var(--gold-soft); margin: 8px 0 0; font-weight: 600; }
+  .dash-day:first-child { margin-top: 0; }
+  .dash-sub { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; margin: 10px 0 2px; color: var(--stage); }
+  .dash-sub:first-child { margin-top: 0; }
+  .dash-sub a { font-weight: 400; color: var(--cream-dim); font-size: 12px; }
+  .dash-empty { color: var(--cream-dim); font-size: 13px; padding: 6px 0; }
+  .dash-hello { font-family: Georgia, serif; font-size: 20px; margin: 0 0 12px; color: var(--cream); }
+  .dash-hello span { color: var(--cream-dim); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 13px; margin-left: 8px; }
+
   .tab:hover { color: var(--cream); }
   .tab.active { color: var(--gold-soft); border-bottom-color: var(--gold); }
   .tab .count {
@@ -318,6 +364,59 @@
   .sort-toggle button { border: none; border-radius: 0; background: var(--anthracite-800); color: var(--cream-dim); padding: 8px 12px; font-size: 12.5px; cursor: pointer; }
   .sort-toggle button.active { background: color-mix(in srgb, var(--gold) 16%, var(--anthracite-800)); color: var(--gold-soft); font-weight: 600; }
   .avatar.card.has-logo { background: #fff; border-color: var(--anthracite-line); }
+  .contact-card-grid.list-mode { display: flex; flex-direction: column; gap: 0; background: var(--anthracite-800);
+    border: 1px solid var(--anthracite-line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .list-mode .contact-card { border: none; border-bottom: 1px solid var(--anthracite-700); border-left: 3px solid var(--stage);
+    border-radius: 0; box-shadow: none; padding: 7px 12px; gap: 12px; }
+  .list-mode .contact-card:last-child { border-bottom: none; }
+  .list-mode .contact-card:hover { transform: none; box-shadow: none; background: var(--anthracite-700); border-color: var(--anthracite-700); border-left-color: var(--stage); }
+  .list-mode .contact-card.selected { box-shadow: inset 0 0 0 2px var(--gold); }
+  .list-mode .avatar.card { width: 32px; height: 32px; border-radius: 8px; font-size: 12px; flex: none; }
+  .list-mode .contact-card .info { display: flex; align-items: center; gap: 4px 12px; flex-wrap: nowrap; }
+  .list-mode .contact-card .name { flex: 0 0 240px; font-size: 14px; }
+  .list-mode .contact-card.is-firma .name { font-size: 14.5px; }
+  .list-mode .contact-card .firma { display: none; }
+  .list-mode .contact-card .card-meta { margin-top: 0; flex: 1; flex-wrap: nowrap; overflow: hidden; }
+  .list-mode .contact-card .brand-badges { margin-top: 0; flex: none; flex-wrap: nowrap; }
+  .list-mode .letter-divider { margin: 0; padding: 6px 12px; font-size: 15px; background: var(--anthracite-700); }
+  @media (max-width: 760px) {
+    .list-mode .contact-card .info { flex-wrap: wrap; }
+    .list-mode .contact-card .name { flex: 1 1 100%; }
+    .list-mode .contact-card .card-meta { flex-wrap: wrap; }
+  }
+  .act-types { display: flex; flex-wrap: wrap; gap: 6px; }
+  .act-types button { padding: 7px 11px; font-size: 12.5px; border-radius: 999px; }
+  .act-types button.active { background: var(--gold); border-color: var(--gold); color: #fff; font-weight: 600; }
+  .act-ideas { display: flex; flex-wrap: wrap; gap: 5px; }
+  .act-ideas button { padding: 4px 9px; font-size: 12px; border-radius: 999px; background: var(--anthracite-800); border-style: dashed; color: var(--cream-dim); }
+  .act-ideas button:hover { color: var(--gold-soft); border-color: var(--gold); border-style: solid; }
+  .note-btn { flex: none; padding: 4px 8px; font-size: 12px; border-radius: 6px; line-height: 1.2; }
+  .last-note { font-size: 11.5px; color: var(--cream-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .last-note b { font-weight: 600; color: var(--gold-soft); }
+  .contact-card .last-note { display: none; }
+  .list-mode .contact-card .last-note { display: block; flex: 1 1 auto; max-width: 300px; }
+  .contact-card .note-btn { display: none; }
+  .list-mode .contact-card .note-btn { display: inline-block; }
+  .dash-row .last-note { display: block; font-size: 11.5px; }
+  .fab-wrap { position: fixed; right: 18px; bottom: 18px; z-index: 80; display: flex; flex-direction: column; gap: 8px; }
+  .fab { width: 44px; height: 44px; border-radius: 50%; padding: 0; font-size: 19px; line-height: 1;
+    background: var(--anthracite-800); border: 1px solid var(--anthracite-line); color: var(--gold-soft);
+    box-shadow: 0 4px 16px rgba(38,35,25,0.16); display: none; }
+  .fab:hover { background: var(--gold); border-color: var(--gold); color: #fff; }
+  .fab.show { display: block; }
+  .due-edit { cursor: pointer; border-bottom: 1px dashed transparent; }
+  .due-edit:hover { border-bottom-color: currentColor; color: var(--gold-soft); }
+  .date-pop { display: none; position: absolute; z-index: 120; width: 250px; background: var(--anthracite-800);
+    border: 1px solid var(--anthracite-line); border-radius: 10px; box-shadow: 0 8px 28px rgba(38,35,25,0.18); padding: 10px; }
+  .date-pop.open { display: block; }
+  .date-pop .dp-title { font-size: 11.5px; color: var(--cream-dim); margin-bottom: 6px; }
+  .date-pop .dp-quick { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .date-pop .dp-quick button { padding: 5px 9px; font-size: 12px; border-radius: 999px; }
+  .import-details > summary { cursor: pointer; color: var(--cream-dim); font-size: 13px; padding: 6px 2px; list-style: none; }
+  .import-details > summary::before { content: '▸ '; }
+  .import-details[open] > summary::before { content: '▾ '; }
+  .import-details[open] > summary { margin-bottom: 10px; }
+
   .avatar.card img { padding: 7px; box-sizing: border-box; }
   .empty-state .hint { font-size: 11.5px; margin-top: 6px; color: var(--anthracite-line); }
 
@@ -384,20 +483,48 @@
   </div>
 
   <div class="tabs">
-    <div class="tab active" data-view="contacts">Kontakte <span class="count" id="countContacts">0</span></div>
+    <div class="tab active" data-view="dashboard">Dashboard</div>
+    <div class="tab" data-view="contacts">Kontakte <span class="count" id="countContacts">0</span></div>
     <div class="tab" data-view="tasks">Aufgaben <span class="count" id="countTasks">0</span></div>
-    <div class="tab" data-view="followups">Follow-ups <span class="count" id="countFollowups">0</span></div>
     <div class="tab" data-view="keyaccounts">Key Accounts <span class="count" id="countKeyAccounts">0</span></div>
-    <div class="tab" data-view="planner">Messe &amp; Besuche</div>
     <div class="tab" data-view="calendar">Kalender</div>
-    <div class="tab" data-view="phonecontacts">iPhone-Kontakte <span class="count" id="countPhoneContacts">0</span></div>
-    <div class="tab" data-view="pipeline">Pipeline</div>
-    <div class="tab" data-view="activitylog">Aktivität</div>
-    <div class="tab" data-view="review">Zu prüfen <span class="count" id="countReview">0</span></div>
+    <div class="tab-spacer"></div>
+    <div class="more-wrap">
+      <div class="more-btn" id="moreBtn" onclick="toggleMoreMenu(event)">Mehr ▾</div>
+      <div class="more-menu" id="moreMenu">
+        <div class="tab" data-view="pipeline">Pipeline</div>
+        <div class="tab" data-view="activitylog">Aktivität</div>
+        <div class="tab" data-view="review">Zu prüfen <span class="count" id="countReview">0</span></div>
+      </div>
+    </div>
+    <!-- ausgeblendet: Messe & Besuche, iPhone-Kontakte (Daten bleiben erhalten) -->
+    <span id="countPhoneContacts" style="display:none;">0</span>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="view active" id="view-dashboard">
+    <div class="dash-hello" id="dashHello">Guten Tag</div>
+    <div class="search-wrap" style="margin-bottom:14px;">
+      <input type="text" id="dashSearch" placeholder="Kontakt suchen…" autocomplete="off">
+      <div class="search-dropdown" id="dashSearchDropdown"></div>
+    </div>
+    <div class="dash-kpis" id="dashKpis"></div>
+    <div class="dash-grid">
+      <div>
+        <div class="panel"><h2>Heute &amp; überfällig <a href="#" onclick="switchToTab('tasks'); return false;">alle Aufgaben ›</a></h2><div id="dashDue"></div></div>
+        <div class="panel" id="dashWakePanel"><h2>Kunden nachfassen &amp; reaktivieren</h2><div id="dashWake"></div></div>
+        <div class="panel"><h2>Key Accounts – jetzt melden <a href="#" onclick="switchToTab('keyaccounts'); return false;">alle ›</a></h2><div id="dashKa"></div></div>
+      </div>
+      <div>
+        <div class="panel"><h2>Nächste Termine <a href="#" onclick="switchToTab('calendar'); return false;">Kalender ›</a></h2><div id="dashEvents"></div></div>
+        <div class="panel"><h2>Kunden – zuletzt aktiv <a href="#" onclick="switchToTab('contacts'); return false;">alle Kontakte ›</a></h2><div id="dashRecent"></div></div>
+        <div class="panel"><h2>Produzenten &amp; Lieferanten <a href="#" onclick="setContactTypeFilter('produzent'); switchToTab('contacts'); return false;">alle ›</a></h2><div id="dashProducers"></div></div>
+      </div>
+    </div>
   </div>
 
   <!-- KONTAKTE -->
-  <div class="view active" id="view-contacts">
+  <div class="view" id="view-contacts">
     <div class="toolbar">
       <div class="search-wrap">
         <input type="text" id="contactSearch" placeholder="Kontakt suchen…" autocomplete="off">
@@ -407,14 +534,19 @@
         <button data-sort="abc" onclick="setContactSort('abc')">A–Z</button>
         <button data-sort="recent" onclick="setContactSort('recent')">Zuletzt aktiv</button>
       </div>
-      <div class="sort-toggle" id="contactTypeToggle">
-        <button data-type="alle" onclick="setContactTypeFilter('alle')">Alle</button>
-        <button data-type="firma" onclick="setContactTypeFilter('firma')">Firmen</button>
-        <button data-type="mitarbeiter" onclick="setContactTypeFilter('mitarbeiter')">Mitarbeiter</button>
-        <button data-type="privat" onclick="setContactTypeFilter('privat')">Privat</button>
-      </div>
+      <select id="contactTypeSelect" onchange="setContactTypeFilter(this.value)" title="Kontakt-Typ" style="width:auto; flex:none; padding:8px 10px; font-size:12.5px;">
+        <option value="alle">Alle Typen</option>
+        <option value="firma">Firmen</option>
+        <option value="mitarbeiter">Mitarbeiter</option>
+        <option value="privat">Privat</option>
+        <option value="produzent">Produzenten / Lieferanten</option>
+      </select>
       <select id="brandFilter" onchange="setBrandFilter(this.value)" title="Nach Marke filtern"></select>
-      <button id="btnBulkMode">Mehrere auswählen</button>
+      <div class="sort-toggle" id="contactLayoutToggle" title="Ansicht">
+        <button data-layout="list" onclick="setContactLayout('list')" title="Liste">☰</button>
+        <button data-layout="cards" onclick="setContactLayout('cards')" title="Karten">▦</button>
+      </div>
+      <button id="btnBulkMode" title="Mehrere Kontakte auswählen">Auswählen</button>
       <button class="primary" id="btnNewContact">+ Kontakt</button>
     </div>
     <div id="bulkActionBar" style="display:none; align-items:center; gap:10px; margin:0 0 12px 0;">
@@ -428,10 +560,12 @@
         <option value="gastro">Gastro-Distributor (alle 4 Wochen)</option>
         <option value="keiner">kein Key Account</option>
       </select>
+      <button class="primary" onclick="openBulkNote()">📝 Notiz für Auswahl</button>
+      <button onclick="selectByMailSubject()" title="Alle Kontakte auswählen, denen du eine Mail mit diesem Betreff gesendet hast">✉ Nach Mail-Betreff auswählen</button>
       <button id="btnBulkDelete" style="color:#e07a7a;">Löschen</button>
       <button id="btnBulkCancel">Abbrechen</button>
     </div>
-    <div id="contactCardGrid" class="contact-card-grid"></div>
+    <div id="contactCardGrid" class="contact-card-grid list-mode"></div>
 
     <div class="panel contact-detail" id="contactDetailPanel" style="display:none;">
       <div class="empty-state">Wähle oben einen Kontakt aus<br>oder lege einen neuen an.</div>
@@ -444,6 +578,8 @@
       </div>
     </div>
 
+    <details class="import-details">
+    <summary>Kontakte exportieren / importieren</summary>
     <div class="panel import-box">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <h2 style="margin:0;">Kontakte exportieren / importieren</h2>
@@ -466,11 +602,16 @@
       </div>
       <div class="import-result" id="importResult"></div>
     </div>
+    </details>
   </div>
 
   <!-- AUFGABEN -->
   <div class="view" id="view-tasks">
-    <div class="toolbar" style="justify-content:flex-end;">
+    <div class="toolbar" style="justify-content:space-between;">
+      <div class="sort-toggle sub-switch" style="margin:0;">
+        <button class="active" onclick="switchToTab('tasks')">Aufgaben</button>
+        <button onclick="switchToTab('followups')">Follow-ups <span class="count" id="countFollowups">0</span></button>
+      </div>
       <button class="primary" onclick="openTaskModal(null)">+ Aufgabe</button>
     </div>
     <div class="panel">
@@ -554,6 +695,12 @@
   </div>
 
   <div class="view" id="view-followups">
+    <div class="toolbar">
+      <div class="sort-toggle sub-switch" style="margin:0;">
+        <button onclick="switchToTab('tasks')">Aufgaben</button>
+        <button class="active" onclick="switchToTab('followups')">Follow-ups <span class="count" id="countFollowups2">0</span></button>
+      </div>
+    </div>
     <div class="panel">
       <h2>Offene Follow-ups</h2>
       <div style="color:var(--cream-dim); font-size:12.5px; margin:-4px 0 12px 0;">Kundentermine, nach denen seit 7 Tagen keine Mail, kein Anruf, keine Offerte und kein Folgetermin erfasst wurde. Wird täglich geprüft und schliesst sich automatisch, sobald du dich meldest.</div>
@@ -662,9 +809,9 @@
 <!-- Aufgabe-Modal -->
 <div class="modal-backdrop" id="taskModalBackdrop">
   <div class="modal">
-    <h2>Neue Wiedervorlage</h2>
+    <h2 id="taskModalTitle">Neue Wiedervorlage</h2>
     <div class="form-grid">
-      <div class="full"><label>Was?</label><input type="text" id="t-text" placeholder="z. B. Offerte nachfassen"></div>
+      <div class="full"><label>Was?</label><textarea id="t-text" rows="3" placeholder="z. B. Offerte nachfassen"></textarea></div>
       <div><label>Fällig am</label><input type="date" id="t-datum"></div>
       <div class="full">
         <label>Dokumente (optional)</label>
@@ -675,6 +822,7 @@
     </div>
     <input type="file" id="t-add-files" multiple style="display:none;" onchange="addFilesToTask()">
     <div class="form-actions">
+      <button class="ghost" id="btnDeleteTask" style="display:none; margin-right:auto;" onclick="deleteEditingTask()">Löschen</button>
       <button id="btnCancelTask">Abbrechen</button>
       <button class="primary" id="btnSaveTask">Speichern</button>
     </div>
@@ -735,11 +883,17 @@
 <!-- Aktivität-Modal -->
 <div class="modal-backdrop" id="activityModalBackdrop">
   <div class="modal">
-    <h2>Aktivität protokollieren</h2>
+    <h2 id="act-title">Kontakt notieren</h2>
     <div class="form-grid">
       <div class="full">
-        <label>Typ</label>
-        <select id="act-typ">
+        <label>Was hast du gemacht?</label>
+        <div class="act-types" id="act-type-chips">
+          <button type="button" data-typ="anruf" onclick="setActType('anruf')">☎ Angerufen</button>
+          <button type="button" data-typ="email" onclick="setActType('email')">✉ Mail geschrieben</button>
+          <button type="button" data-typ="meeting" onclick="setActType('meeting')">🤝 Besuch / Meeting</button>
+          <button type="button" data-typ="notiz" onclick="setActType('notiz')">📝 Notiz</button>
+        </div>
+        <select id="act-typ" style="display:none;">
           <option value="notiz">Notiz</option>
           <option value="anruf">Anruf</option>
           <option value="email">E-Mail</option>
@@ -747,7 +901,21 @@
         </select>
       </div>
       <div class="full" id="act-event-info" style="display:none; font-size:13px; color:var(--gold-soft);"></div>
-      <div class="full"><label>Was ist passiert?</label><textarea id="act-text" placeholder="z. B. Angebot besprochen, Kunde interessiert an Zusatzartikeln…"></textarea></div>
+      <div class="full">
+        <label>Ideen – antippen zum Übernehmen</label>
+        <div class="act-ideas" id="act-ideas"></div>
+      </div>
+      <div class="full"><label>Notiz</label><textarea id="act-text" placeholder="z. B. Neuheiten Guzzini vorgestellt, will Muster bis Ende Monat…"></textarea></div>
+      <div class="full">
+        <label>Wieder melden (Wiedervorlage)</label>
+        <div class="act-types" id="act-followup-chips">
+          <button type="button" data-days="0" onclick="setActFollowup(0)">keine</button>
+          <button type="button" data-days="7" onclick="setActFollowup(7)">in 1 Woche</button>
+          <button type="button" data-days="14" onclick="setActFollowup(14)">in 2 Wochen</button>
+          <button type="button" data-days="30" onclick="setActFollowup(30)">in 1 Monat</button>
+          <button type="button" data-days="90" onclick="setActFollowup(90)">in 3 Monaten</button>
+        </div>
+      </div>
       <div class="full">
         <label>Dateien (optional)</label>
         <input type="file" id="act-files" multiple style="display:none;" onchange="renderActivityFileList()">
@@ -782,6 +950,21 @@
   </div>
 </div>
 
+<div class="fab-wrap" id="fabWrap">
+  <button class="fab" id="fabDash" title="Zum Dashboard" onclick="switchToTab('dashboard')">⌂</button>
+  <button class="fab" id="fabTop" title="Nach oben" onclick="scrollToTop()">↑</button>
+</div>
+<div class="date-pop" id="datePop">
+  <div class="dp-title">Fällig am</div>
+  <div class="dp-quick">
+    <button onclick="setTaskDue(0)">Heute</button>
+    <button onclick="setTaskDue(1)">Morgen</button>
+    <button onclick="setTaskDue(7)">+1 Woche</button>
+    <button onclick="setTaskDue(14)">+2 Wochen</button>
+    <button onclick="setTaskDue(30)">+1 Monat</button>
+  </div>
+  <input type="date" id="datePopInput" onchange="setTaskDueDate(this.value)">
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -963,6 +1146,7 @@ async function fbLoadAll() {
       return (a.name || '').localeCompare(b.name || ''); // Rest alphabetisch
     });
     renderContacts();
+    scheduleDashboard();
     renderCalendar();
     renderPipeline();
     renderActivityLog();
@@ -975,6 +1159,7 @@ async function fbLoadAll() {
   fbDb.collection('crmTasks').orderBy('faelligAm').onSnapshot(snap => {
     tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTasks();
+    scheduleDashboard();
     renderFollowups();
     renderPipeline();
     if (selectedContactId) renderContactDetail(selectedContactId);
@@ -994,6 +1179,7 @@ async function fbLoadAll() {
   }, () => {});
   fbDb.collection('crmEvents').onSnapshot(snap => {
     events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    scheduleDashboard();
     renderCalendar();
     renderKeyAccounts();
     renderPlanner();
@@ -1001,6 +1187,8 @@ async function fbLoadAll() {
   }, () => {});
   fbDb.collection('crmActivities').onSnapshot(snap => {
     activities = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    scheduleDashboard();
+    renderContacts();
     renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
   }, () => {});
@@ -1012,6 +1200,8 @@ async function fbLoadAll() {
   // E-Mails: Collection existiert erst nach dem ersten Sync-Lauf.
   fbDb.collection('crmEmails').onSnapshot(snap => {
     emails = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    scheduleDashboard();
+    renderContacts();
     renderKeyAccounts();
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
@@ -1024,6 +1214,278 @@ async function fbLoadAll() {
     if (selectedContactId) renderContactDetail(selectedContactId);
     scheduleAutoTagBrands();
   }, () => {});
+}
+
+
+// ---------- Notiz für mehrere Kontakte ----------
+function openBulkNote() {
+  const ids = [...bulkSelectedIds];
+  if (!ids.length) { toast('Zuerst Kontakte auswählen.'); return; }
+  openActivityModal(null, null, 'email');
+  activityModalBulkIds = ids;
+  document.getElementById('act-title').textContent = `Kontakt notieren – ${ids.length} Kontakte`;
+}
+
+// Wählt alle Firmen/Kontakte aus, denen in den letzten Tagen eine Mail mit diesem Betreff gesendet wurde.
+function selectByMailSubject() {
+  const word = prompt('Betreff enthält (z. B. Ambiente):', 'Ambiente');
+  if (!word) return;
+  const daysStr = prompt('Gesendet in den letzten … Tagen:', '1');
+  if (daysStr === null) return;
+  const days = Math.max(1, parseInt(daysStr, 10) || 1);
+  const since = Date.now() - days * 86400000;
+  const w = word.trim().toLowerCase();
+  const sent = emails.filter(e => e.direction === 'gesendet' && (e.subject || '').toLowerCase().includes(w) && Date.parse(e.date) >= since);
+  // Adresse -> Kontakt, Domain -> Firma
+  const byAddr = new Map(), byDomain = new Map();
+  contacts.forEach(c => {
+    const target = (contactType(c) === 'mitarbeiter' && c.firmaKontaktId) ? c.firmaKontaktId : c.id;
+    [c.email, ...(c.weitereEmails || [])].filter(Boolean).forEach(m => {
+      const a = String(m).toLowerCase().trim();
+      byAddr.set(a, target);
+      const d = a.split('@')[1];
+      if (d && !NO_LOGO_DOMAINS.has(d) && contactType(c) !== 'mitarbeiter' && !byDomain.has(d)) byDomain.set(d, c.id);
+    });
+    const wd = domainFromWebsite(c.website);
+    if (wd && contactType(c) !== 'mitarbeiter' && !byDomain.has(wd)) byDomain.set(wd, c.id);
+  });
+  const found = new Set(), unknown = new Set();
+  sent.forEach(e => [...(e.participants || []), e.to].map(mailAddrOf).filter(Boolean).forEach(a => {
+    const id = byAddr.get(a) || byDomain.get(a.split('@')[1]);
+    if (id) found.add(id); else if (!/(trendsense|kawea)\.ch$/.test(a)) unknown.add(a);
+  }));
+  if (!bulkMode) setBulkMode(true);
+  found.forEach(id => bulkSelectedIds.add(id));
+  updateBulkBar();
+  renderContacts();
+  if (!sent.length) { toast(`Keine gesendeten Mails mit «${word}» gefunden.`); return; }
+  toast(`${sent.length} Mail(s) gefunden · ${found.size} Kontakt(e) ausgewählt${unknown.size ? ` · ${unknown.size} Adresse(n) nicht im CRM` : ''}`);
+  if (unknown.size) console.log('Nicht im CRM:', [...unknown].join(', '));
+}
+
+// ---------- Fälligkeitsdatum einer Aufgabe ändern ----------
+let datePopTaskId = null;
+function dueEditHtml(t, label, cls) {
+  return `<span class="due-edit ${cls || ''}" title="Datum ändern" onclick="openDatePop(event, '${t.id}')">${label}</span>`;
+}
+function openDatePop(ev, taskId) {
+  ev.stopPropagation(); ev.preventDefault();
+  datePopTaskId = taskId;
+  const t = tasks.find(x => x.id === taskId);
+  const pop = document.getElementById('datePop');
+  document.getElementById('datePopInput').value = t && t.faelligAm ? localDayKey(t.faelligAm) : '';
+  const r = ev.currentTarget.getBoundingClientRect();
+  pop.classList.add('open');
+  const w = pop.offsetWidth;
+  pop.style.top = (window.scrollY + r.bottom + 6) + 'px';
+  pop.style.left = Math.max(8, Math.min(window.scrollX + r.right - w, window.scrollX + document.documentElement.clientWidth - w - 8)) + 'px';
+}
+function closeDatePop() { document.getElementById('datePop').classList.remove('open'); datePopTaskId = null; }
+document.addEventListener('click', e => { if (!e.target.closest('#datePop')) closeDatePop(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDatePop(); });
+function setTaskDue(days) { setTaskDueDate(localDayKey(new Date(Date.now() + days * 86400000))); }
+async function setTaskDueDate(key) {
+  const id = datePopTaskId;
+  if (!id || !key || !fbDb) return;
+  closeDatePop();
+  try {
+    await fbDb.collection('crmTasks').doc(id).update({ faelligAm: key });
+    toast(`Verschoben auf ${fmtDate(key)}.`);
+  } catch (e) { toast(`Fehler: ${e.message || e}`); }
+}
+
+// ---------- Letzte Notiz ----------
+// Gesendete Mails (aus dem Mail-Sync) automatisch den Kunden zuordnen:
+// über die genaue Adresse (Kontakt + seine Firma) oder die Firmen-Domain (z. B. @manor.ch).
+let sentMailIdx = null, sentMailIdxKey = null;
+function sentMailIndex() {
+  if (sentMailIdx && sentMailIdxKey && sentMailIdxKey[0] === emails && sentMailIdxKey[1] === contacts) return sentMailIdx;
+  const byAddr = new Map(), byDomain = new Map();
+  const add = (map, k, id) => { if (!map.has(k)) map.set(k, new Set()); map.get(k).add(id); };
+  contacts.forEach(c => {
+    const isEmp = contactType(c) === 'mitarbeiter' && c.firmaKontaktId;
+    [c.email, ...(c.weitereEmails || [])].filter(Boolean).forEach(m => {
+      const a = String(m).toLowerCase().trim();
+      add(byAddr, a, c.id); if (isEmp) add(byAddr, a, c.firmaKontaktId);
+      const d = a.split('@')[1];
+      if (d && !NO_LOGO_DOMAINS.has(d) && !isEmp) add(byDomain, d, c.id);
+    });
+    (c.mitarbeiter || []).forEach(m => m.email && add(byAddr, String(m.email).toLowerCase().trim(), c.id));
+    const wd = domainFromWebsite(c.website);
+    if (wd && !NO_LOGO_DOMAINS.has(wd) && !isEmp) add(byDomain, wd.toLowerCase(), c.id);
+  });
+  const latest = new Map(); // contactId -> neueste gesendete Mail
+  emails.forEach(e => {
+    if (e.direction !== 'gesendet' || !e.date) return;
+    const ids = new Set();
+    [...(e.participants || []), e.to].map(mailAddrOf).filter(Boolean).forEach(a => {
+      const hit = byAddr.get(a) || byDomain.get(a.split('@')[1]);
+      if (hit) hit.forEach(id => ids.add(id));
+    });
+    ids.forEach(id => { const cur = latest.get(id); if (!cur || e.date > cur.date) latest.set(id, e); });
+  });
+  sentMailIdx = latest; sentMailIdxKey = [emails, contacts];
+  return latest;
+}
+
+function lastActivityFor(c) {
+  if (!c) return null;
+  const ids = new Set([c.id, ...contacts.filter(x => x.firmaKontaktId === c.id).map(x => x.id)]);
+  let best = null;
+  for (const a of activities) {
+    if (!ids.has(a.contactId) || !a.createdAt) continue;
+    if (!best || a.createdAt > best.createdAt) best = a;
+  }
+  const mail = sentMailIndex().get(c.id);
+  if (mail) {
+    const mIso = new Date(mail.date).toISOString();
+    if (!best || mIso > best.createdAt) best = { typ: 'email', createdAt: mIso, text: 'Mail: ' + (mail.subject || '(ohne Betreff)'), auto: true };
+  }
+  return best;
+}
+function lastNoteHtml(c) {
+  const a = lastActivityFor(c);
+  if (!a) return '';
+  const icon = ACTIVITY_ICONS[a.typ] || '📝';
+  const when = relativeDays(a.createdAt).replace(' aktiv', '');
+  const txt = (a.text || ACTIVITY_LABELS[a.typ] || '').replace(/\s+/g, ' ');
+  return `<div class="last-note" title="${escapeHtml(a.text || '')}">${icon} <b>${escapeHtml(when)}</b> ${escapeHtml(txt)}</div>`;
+}
+function noteBtn(id) {
+  return `<button class="small note-btn" title="Kontakt notieren" onclick="event.stopPropagation(); openActivityModal('${id}')">📝</button>`;
+}
+
+// ---------- Dashboard ----------
+let dashPending = false;
+const dashExpanded = {};
+function scheduleDashboard() {
+  if (dashPending) return;
+  dashPending = true;
+  requestAnimationFrame(() => { dashPending = false; renderDashboard(); });
+}
+
+function dashOpenContact(id) {
+  if (!id) return;
+  switchToTab('contacts');
+  selectContact(id);
+}
+
+function renderDashboard() {
+  const kpiEl = document.getElementById('dashKpis');
+  if (!kpiEl) return;
+  const now = new Date();
+  const todayKey = localDayKey(now);
+  const h = now.getHours();
+  const greet = h < 11 ? 'Guten Morgen' : h < 18 ? 'Guten Tag' : 'Guten Abend';
+  document.getElementById('dashHello').innerHTML = `${greet}${currentUserName ? ', ' + escapeHtml(currentUserName) : ''}<span>${now.toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long' })}</span>`;
+
+  const openTasks = tasks.filter(t => !t.erledigt);
+  const openFu = openTasks.filter(t => t.followupEventId || t.keyAccountId);
+  const due = openTasks.filter(t => t.faelligAm && localDayKey(t.faelligAm) <= todayKey)
+    .sort((a, b) => (a.faelligAm || '').localeCompare(b.faelligAm || ''));
+  const kas = contacts.filter(isKeyAccount).map(c => ({ c, st: kaStatus(c) }));
+  const kaAlert = kas.filter(x => x.st.ampel !== 'gruen').sort((a, b) => a.st.score - b.st.score);
+  const kaRed = kaAlert.filter(x => x.st.ampel === 'rot').length;
+  const isCustomerRow = c => contactType(c) !== 'mitarbeiter' && c.status !== 'produzent';
+  const touchT = c => { const a = lastActivityFor(c); return a ? (Date.parse(a.createdAt) || 0) : 0; };
+  const byOldest = (a, b) => touchT(a) - touchT(b);
+  const nachfassen = contacts.filter(c => isCustomerRow(c) && c.status === 'nachfassen').sort(byOldest);
+  const schlafend = contacts.filter(c => isCustomerRow(c) && c.status === 'schlafend').sort(byOldest);
+
+  const kpi = (v, l, view, warn) => `<div class="dash-kpi${warn ? ' warn' : ''}" onclick="switchToTab('${view}')"><div class="kv">${v}</div><div class="kl">${l}</div></div>`;
+  kpiEl.innerHTML =
+    kpi(due.length, 'heute fällig / überfällig', 'tasks', due.length > 0) +
+    kpi(openFu.length, 'offene Follow-ups', 'followups', false) +
+    kpi(kaRed, 'Key Accounts überfällig', 'keyaccounts', kaRed > 0) +
+    `<div class="dash-kpi${nachfassen.length ? ' warn' : ''}" onclick="document.getElementById('dashWakePanel').scrollIntoView({behavior:'smooth', block:'start'})"><div class="kv">${nachfassen.length}<span style="font-size:15px; color:var(--cream-dim);"> / ${schlafend.length}</span></div><div class="kl">nachfassen / schlafend</div></div>`;
+
+  const nameOf = id => { const c = contacts.find(x => x.id === id); return c ? (c.firma || c.name || '') : ''; };
+
+  // Heute & überfällig
+  const dueEl = document.getElementById('dashDue');
+  dueEl.innerHTML = due.length ? due.slice(0, 12).map(t => {
+    const k = localDayKey(t.faelligAm);
+    const who = nameOf(t.contactId);
+    return `<div class="dash-row">
+      <input type="checkbox" title="erledigt" onchange="toggleTask('${t.id}', this.checked)">
+      <div class="dr-main">${escapeHtml(t.text || (t.keyAccountId ? 'Key Account melden' : 'Follow-up'))}${who ? ` — <span class="dr-who" onclick="dashOpenContact('${t.contactId}')">${escapeHtml(who)}</span>` : ''}</div>
+      ${taskEditBtn(t.id)}
+      <div class="dr-side${k < todayKey ? ' overdue' : ''}">${dueEditHtml(t, k === todayKey ? 'heute' : fmtDate(k))}</div>
+    </div>`;
+  }).join('') + (due.length > 12 ? `<div class="dash-empty">+ ${due.length - 12} weitere – <a href="#" onclick="switchToTab('tasks'); return false;">alle anzeigen</a></div>` : '')
+    : `<div class="dash-empty">Nichts fällig heute. 👍</div>`;
+
+  // Key Accounts
+  const kaEl = document.getElementById('dashKa');
+  kaEl.innerHTML = kaAlert.length ? kaAlert.slice(0, 8).map(({ c, st }) => `
+    <div class="dash-row click" onclick="dashOpenContact('${c.id}')">
+      <span>${KA_DOT[st.ampel]}</span>
+      <div class="dr-main">${escapeHtml(c.firma || c.name || '')}${lastNoteHtml(c)}</div>
+      ${noteBtn(c.id)}
+      <div class="dr-side${st.ampel === 'rot' ? ' overdue' : ''}">${escapeHtml(st.text)}</div>
+    </div>`).join('') + (kaAlert.length > 8 ? `<div class="dash-empty">+ ${kaAlert.length - 8} weitere</div>` : '')
+    : `<div class="dash-empty">Alle Key Accounts im Rhythmus. 🟢</div>`;
+
+  // Nächste Termine (7 Tage)
+  const endKey = localDayKey(new Date(now.getTime() + 7 * 86400000));
+  const upcoming = events.filter(e => e.start && !e.pendingDelete)
+    .filter(e => { const k = localDayKey(e.start); return k >= todayKey && k <= endKey; })
+    .sort((a, b) => a.start.localeCompare(b.start));
+  const evEl = document.getElementById('dashEvents');
+  if (!upcoming.length) {
+    evEl.innerHTML = `<div class="dash-empty">Keine Termine in den nächsten 7 Tagen.</div>`;
+  } else {
+    let lastDay = null;
+    evEl.innerHTML = upcoming.slice(0, 10).map(e => {
+      const k = localDayKey(e.start);
+      let head = '';
+      if (k !== lastDay) {
+        lastDay = k;
+        const d = new Date(e.start);
+        head = `<div class="dash-day">${k === todayKey ? 'Heute' : d.toLocaleDateString('de-CH', { weekday: 'short', day: '2-digit', month: '2-digit' })}</div>`;
+      }
+      const who = e.contactId ? nameOf(e.contactId) : '';
+      const time = /T\d/.test(e.start) ? new Date(e.start).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) : '';
+      return head + `<div class="dash-row${e.contactId ? ' click' : ''}" ${e.contactId ? `onclick="dashOpenContact('${e.contactId}')"` : ''}>
+        <div class="dr-side" style="min-width:38px;">${time}</div>
+        <div class="dr-main">${escapeHtml(e.titel || '')}${who ? ` <span class="dr-who">· ${escapeHtml(who)}</span>` : ''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Kunden nachfassen & schlafend (am längsten ohne Kontakt zuerst)
+  const wakeRow = c => `<div class="dash-row click" onclick="dashOpenContact('${c.id}')">
+      <div class="dr-main">${escapeHtml(c.firma || c.name || '')}${lastNoteHtml(c)}</div>
+      ${noteBtn(c.id)}
+      <div class="dr-side">${escapeHtml(c.ort || '')}</div>
+    </div>`;
+  const wakeGroup = (key, label, color, list) => {
+    if (!list.length) return '';
+    const all = dashExpanded[key];
+    return `<div class="dash-sub" style="--stage:${color};">${label} (${list.length})${list.length > 6 ? ` <a href="#" onclick="dashExpanded['${key}'] = !dashExpanded['${key}']; renderDashboard(); return false;">${all ? 'weniger' : 'alle anzeigen'}</a>` : ''}</div>`
+      + (all ? list : list.slice(0, 6)).map(wakeRow).join('');
+  };
+  document.getElementById('dashWake').innerHTML = (nachfassen.length || schlafend.length)
+    ? wakeGroup('nachfassen', 'Kunde nachfassen', 'var(--red)', nachfassen) + wakeGroup('schlafend', 'Schlafende Kunden', '#5b7a99', schlafend)
+    : `<div class="dash-empty">Keine Kunden zum Nachfassen. 👍</div>`;
+
+  // Produzenten & Lieferanten
+  const producers = contacts.filter(c => c.status === 'produzent' && contactType(c) !== 'mitarbeiter')
+    .sort((a, b) => (Date.parse(b.lastActivityAt || 0) || 0) - (Date.parse(a.lastActivityAt || 0) || 0)).slice(0, 5);
+  document.getElementById('dashProducers').innerHTML = producers.length ? producers.map(c => `
+    <div class="dash-row click" onclick="dashOpenContact('${c.id}')">
+      <div class="dr-main">${escapeHtml(c.firma || c.name || '')}</div>
+      <div class="dr-side">${escapeHtml(relativeDays(c.lastActivityAt))}</div>
+    </div>`).join('') : `<div class="dash-empty">Noch keine Produzenten erfasst.</div>`;
+
+  // Kunden – zuletzt aktiv (ohne Produzenten)
+  const recent = contacts.filter(c => c.lastActivityAt && contactType(c) !== 'mitarbeiter' && c.status !== 'produzent')
+    .sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt)).slice(0, 6);
+  document.getElementById('dashRecent').innerHTML = recent.length ? recent.map(c => `
+    <div class="dash-row click" onclick="dashOpenContact('${c.id}')">
+      <div class="dr-main">${escapeHtml(c.firma || c.name || '')}</div>
+      <div class="dr-side">${escapeHtml([c.ort, relativeDays(c.lastActivityAt)].filter(Boolean).join(' · '))}</div>
+    </div>`).join('') : `<div class="dash-empty">Noch keine Aktivität.</div>`;
 }
 
 // ---------- Kontakte: Liste ----------
@@ -1288,6 +1750,14 @@ function typeTagHtml(c) {
 let contactTypeFilter = 'alle';
 try { contactTypeFilter = localStorage.getItem('crmContactType') || 'alle'; } catch (e) {}
 
+let contactLayout = 'list';
+try { contactLayout = localStorage.getItem('crmContactLayout') || 'list'; } catch (e) {}
+function setContactLayout(l) {
+  contactLayout = l;
+  try { localStorage.setItem('crmContactLayout', l); } catch (e) {}
+  renderContacts();
+}
+
 function setContactTypeFilter(t) {
   contactTypeFilter = t;
   try { localStorage.setItem('crmContactType', t); } catch (e) {}
@@ -1335,11 +1805,24 @@ function kaScope(c) {
     ids.add(x.id); nameById.set(x.id, x.name || '');
     addr(x.email, x.name || ''); (x.weitereEmails || []).forEach(e => addr(e, x.name || ''));
   });
-  return { ids, addrs: new Set(nameByAddr.keys()), nameById, nameByAddr };
+  // Firmen-Domain(s), z. B. manor.ch: jede gesendete Mail an jemanden @manor.ch zählt,
+  // auch wenn die Einkäuferin (noch) nicht als Mitarbeiter erfasst ist.
+  const domains = new Set();
+  const addDomain = d => { d = (d || '').toLowerCase().trim(); if (d && !NO_LOGO_DOMAINS.has(d)) domains.add(d); };
+  [c, ...contacts.filter(x => x.firmaKontaktId === c.id)].forEach(x => {
+    addDomain(domainFromWebsite(x.website));
+    [x.email, ...(x.weitereEmails || [])].filter(Boolean).forEach(m => addDomain(String(m).split('@')[1]));
+  });
+  (c.mitarbeiter || []).forEach(m => m.email && addDomain(String(m.email).split('@')[1]));
+  return { ids, addrs: new Set(nameByAddr.keys()), domains, nameById, nameByAddr };
+}
+function mailAddrOf(p) {
+  const m = String(p || '').toLowerCase().match(/[^\s<>"',;]+@[^\s<>"',;]+/);
+  return m ? m[0] : '';
 }
 
 function kaTouches(c) {
-  const { ids, addrs, nameById, nameByAddr } = kaScope(c);
+  const { ids, addrs, domains, nameById, nameByAddr } = kaScope(c);
   const withWho = who => who ? ` mit ${who}` : '';
   const now = Date.now();
   let last = null, next = null;
@@ -1349,9 +1832,10 @@ function kaTouches(c) {
     if (t <= now) { if (!last || t > last.t) last = { t, label }; }
     else if (!next || t < next.t) next = { t, label };
   };
-  if (addrs.size) emails.forEach(e => {
+  if (addrs.size || domains.size) emails.forEach(e => {
     if (e.direction !== 'gesendet') return;
-    const hit = (e.participants || []).map(p => String(p).toLowerCase().trim()).filter(p => addrs.has(p));
+    const hit = [...(e.participants || []), e.to].map(mailAddrOf).filter(Boolean)
+      .filter(p => addrs.has(p) || domains.has(p.split('@')[1]));
     if (!hit.length) return;
     const who = hit.map(a => nameByAddr.get(a)).find(Boolean) || '';
     seen(e.date, `Mail an ${who || (e.to || 'Firma')} «${(e.subject || '').slice(0, 45)}»`);
@@ -1536,7 +2020,7 @@ function renderKeyAccounts() {
         </div>
         <div class="ka-actions">
           ${mail ? `<button class="small" onclick="location.href='mailto:${encodeURI(mail)}'">✉ Mail</button>` : ''}
-          <button class="small" onclick="kaLogCall('${c.id}')">☎ Anruf notieren</button>
+          <button class="small" onclick="openActivityModal('${c.id}', null, 'anruf')">📝 Kontakt notieren</button>
         </div>
       </div>`;
     }).join('');
@@ -1919,10 +2403,14 @@ function renderContacts() {
   const grid = document.getElementById('contactCardGrid');
   document.querySelectorAll('#contactSortToggle button').forEach(b => b.classList.toggle('active', b.dataset.sort === contactSort));
   document.querySelectorAll('#contactTypeToggle button').forEach(b => b.classList.toggle('active', b.dataset.type === contactTypeFilter));
+  const typeSel = document.getElementById('contactTypeSelect'); if (typeSel) typeSel.value = contactTypeFilter;
+  grid.classList.toggle('list-mode', contactLayout === 'list');
+  document.querySelectorAll('#contactLayoutToggle button').forEach(b => b.classList.toggle('active', b.dataset.layout === contactLayout));
   let filtered = contacts.filter(c => {
     if (!matchesBrandFilter(c)) return false;
     const t = contactType(c);
-    if (contactTypeFilter === 'firma' && t !== 'firma') return false;
+    if (contactTypeFilter === 'produzent') { if (c.status !== 'produzent' || t === 'mitarbeiter') return false; return !q || contactSearchScore(c, q) > 0; }
+    if (contactTypeFilter === 'firma' && (t !== 'firma' || c.status === 'produzent')) return false;
     if (contactTypeFilter === 'privat' && t !== 'privat') return false;
     if (contactTypeFilter === 'mitarbeiter' && t !== 'mitarbeiter' && t !== 'unklar') return false;
     // «Alle»: verknüpfte Mitarbeiter stehen bei ihrer Firma, nicht in der Liste -
@@ -1968,8 +2456,10 @@ function renderContacts() {
           <span class="stage-pill">${escapeHtml(getStageLabel(c.status))}</span>
           <span class="card-sub">${escapeHtml([c.ort, relativeDays(c.lastActivityAt)].filter(Boolean).join(' · '))}</span>
         </div>
+        ${lastNoteHtml(c)}
         ${renderBrandBadges(c)}
       </div>
+      ${bulkMode ? '' : noteBtn(c.id)}
     </div>`;
   }).join('');
 
@@ -2003,7 +2493,7 @@ function setBulkMode(on) {
   bulkMode = on;
   bulkSelectedIds = new Set();
   document.getElementById('bulkActionBar').style.display = on ? 'flex' : 'none';
-  document.getElementById('btnBulkMode').textContent = on ? 'Auswahlmodus aktiv' : 'Mehrere auswählen';
+  document.getElementById('btnBulkMode').textContent = on ? 'Auswahl beenden' : 'Auswählen';
   updateBulkBar();
   renderContacts();
 }
@@ -2471,10 +2961,10 @@ function renderTaskListInline(list) {
       <input type="checkbox" ${t.erledigt?'checked':''} onchange="toggleTask('${t.id}', this.checked)">
       <div style="flex:1;">
         <div class="task-text">${escapeHtml(t.text||'')}</div>
-        ${t.faelligAm ? `<div class="task-meta ${(!t.erledigt && t.faelligAm < today) ? 'overdue' : ''}">Fällig: ${fmtDate(t.faelligAm)}</div>` : ''}
+        ${t.faelligAm ? `<div class="task-meta ${(!t.erledigt && t.faelligAm < today) ? 'overdue' : ''}">${t.erledigt ? 'Fällig: ' + fmtDate(t.faelligAm) : dueEditHtml(t, 'Fällig: ' + fmtDate(t.faelligAm) + ' ✎')}</div>` : ''}
         ${renderAttachmentLinks(t)}
       </div>
-      ${t.erledigt ? '' : `<button class="small" title="Dokument anhängen" onclick="pickFilesForTask('${t.id}')">📎 +</button>`}
+      ${t.erledigt ? '' : taskEditBtn(t.id) + `<button class="small" title="Dokument anhängen" onclick="pickFilesForTask('${t.id}')">📎 +</button>`}
     </div>
   `).join('');
 }
@@ -2507,11 +2997,39 @@ function renderActivityListInline(list) {
 let activityModalContactId = null;
 
 let activityModalEventId = null;
-function openActivityModal(contactId, eventId) {
+let activityModalBulkIds = null; // Notiz für mehrere Kontakte gleichzeitig
+const ACT_IDEAS = {
+  anruf: ['Neuheiten vorgestellt', 'Nach Bestellung gefragt', 'Offerte besprochen', 'Termin vereinbart', 'Nicht erreicht – Rückruf erbeten', 'Nachbestellung angeregt', 'Weihnachtsgeschäft besprochen', 'Abverkauf / Lagerbestand nachgefragt'],
+  email: ['Neuheiten / Katalog gesendet', 'Preisliste gesendet', 'Offerte gesendet', 'Auf Offerte nachgefasst', 'Messe-Einladung gesendet', 'Aktion / Sonderkondition angeboten', 'Lieferstatus mitgeteilt', 'Dank für Bestellung'],
+  meeting: ['Besuch im Geschäft', 'Sortiment präsentiert', 'Muster abgegeben', 'Bestellung aufgenommen', 'Gespräch an der Messe', 'Schaufenster / POS angeschaut', 'Schulung Verkaufsteam'],
+  notiz: ['Muster gesendet', 'Ansprechpartner gewechselt', 'Kein Bedarf im Moment', 'Budget erst nächstes Jahr', 'Interesse an Marke …', 'Reklamation erledigt', 'Konkurrenz im Sortiment'],
+};
+let actFollowupDays = 0;
+function setActType(t) {
+  document.getElementById('act-typ').value = t;
+  document.querySelectorAll('#act-type-chips button').forEach(b => b.classList.toggle('active', b.dataset.typ === t));
+  document.getElementById('act-ideas').innerHTML = (ACT_IDEAS[t] || []).map(i =>
+    `<button type="button" onclick="addActIdea(this.textContent)">${escapeHtml(i)}</button>`).join('');
+}
+function addActIdea(txt) {
+  const ta = document.getElementById('act-text');
+  const cur = ta.value.trim();
+  ta.value = cur ? cur + (/[.!?]$/.test(cur) ? ' ' : '. ') + txt : txt;
+  ta.focus();
+}
+function setActFollowup(days) {
+  actFollowupDays = days;
+  document.querySelectorAll('#act-followup-chips button').forEach(b => b.classList.toggle('active', +b.dataset.days === days));
+}
+
+function openActivityModal(contactId, eventId, typ) {
   activityModalContactId = contactId;
   activityModalEventId = eventId || null;
   const ev = eventId ? events.find(e => e.id === eventId) : null;
-  document.getElementById('act-typ').value = ev ? 'meeting' : 'notiz';
+  const c = contacts.find(x => x.id === contactId);
+  document.getElementById('act-title').textContent = c ? `Kontakt notieren – ${c.firma || c.name || ''}` : 'Kontakt notieren';
+  setActType(typ || (ev ? 'meeting' : 'anruf'));
+  setActFollowup(0);
   document.getElementById('act-text').value = '';
   document.getElementById('act-files').value = '';
   renderActivityFileList();
@@ -2524,6 +3042,7 @@ function closeActivityModal() {
   document.getElementById('activityModalBackdrop').classList.remove('active');
   activityModalContactId = null;
   activityModalEventId = null;
+  activityModalBulkIds = null;
 }
 function renderActivityFileList() {
   const files = [...(document.getElementById('act-files').files || [])];
@@ -2536,6 +3055,33 @@ async function saveActivity() {
   if (!fbDb) { toast('Keine Verbindung zur Datenbank.'); return; }
   if (files.length && !fbStorage) { toast('Dokumente-Speicher nicht verfügbar.'); return; }
   const btn = document.getElementById('btnSaveActivity');
+  if (activityModalBulkIds) {
+    if (files.length) { toast('Dateien gehen nur bei einem einzelnen Kontakt.'); return; }
+    btn.disabled = true;
+    try {
+      const ids = activityModalBulkIds;
+      const typ = document.getElementById('act-typ').value;
+      const now = new Date().toISOString();
+      const dueKey = actFollowupDays > 0 ? localDayKey(new Date(Date.now() + actFollowupDays * 86400000)) : null;
+      for (let i = 0; i < ids.length; i += 200) {
+        const batch = fbDb.batch();
+        ids.slice(i, i + 200).forEach(id => {
+          batch.set(fbDb.collection('crmActivities').doc(), { contactId: id, typ, text, attachments: [], createdAt: now, createdBy: currentUserName || null });
+          batch.update(fbDb.collection('crmContacts').doc(id), { lastActivityAt: now, lastEditedBy: currentUserName || null });
+          if (dueKey) batch.set(fbDb.collection('crmTasks').doc(), { contactId: id, text: 'Wieder melden' + (text ? ': ' + text.slice(0, 70) : ''), faelligAm: dueKey, erledigt: false, attachments: [], createdAt: now });
+        });
+        await batch.commit();
+      }
+      toast(`Notiz bei ${ids.length} Kontakt(en) gespeichert.`);
+      closeActivityModal();
+      setBulkMode(false);
+    } catch (e) {
+      toast(`Fehler: ${e.message || e}`);
+    } finally {
+      btn.disabled = false;
+    }
+    return;
+  }
   btn.disabled = true;
   const contactId = activityModalContactId;
   try {
@@ -2555,8 +3101,20 @@ async function saveActivity() {
       createdAt: new Date().toISOString()
     };
     if (ev) { data.eventId = ev.id; data.eventTitle = `${ev.titel || ''} (${fmtDate(ev.start)})`; }
+    data.createdBy = currentUserName || null;
     await fbDb.collection('crmActivities').add(data);
-    toast(files.length ? 'Notiz und Dateien gespeichert.' : 'Notiz gespeichert.');
+    if (actFollowupDays > 0) {
+      const due = new Date(Date.now() + actFollowupDays * 86400000);
+      await fbDb.collection('crmTasks').add({
+        contactId,
+        text: 'Wieder melden' + (text ? ': ' + text.slice(0, 70) : ''),
+        faelligAm: localDayKey(due),
+        erledigt: false,
+        attachments: [],
+        createdAt: new Date().toISOString()
+      });
+    }
+    toast((files.length ? 'Notiz und Dateien gespeichert.' : 'Notiz gespeichert.') + (actFollowupDays > 0 ? ' Wiedervorlage angelegt.' : ''));
     touchContact(contactId);
     closeActivityModal();
   } catch (e) {
@@ -2697,9 +3255,10 @@ function renderTasks() {
       <input type="checkbox" onchange="toggleTask('${t.id}', this.checked)">
       <div style="flex:1;">
         <div class="task-text">${escapeHtml(t.text||'')} ${withContactName(t) ? `— <span style="color:var(--gold-soft)">${escapeHtml(withContactName(t))}</span>` : ''}</div>
-        ${t.faelligAm ? `<div class="task-meta ${t.faelligAm < today ? 'overdue' : ''}">Fällig: ${fmtDate(t.faelligAm)}</div>` : ''}
+        <div class="task-meta ${t.faelligAm && t.faelligAm < today ? 'overdue' : ''}">${dueEditHtml(t, t.faelligAm ? 'Fällig: ' + fmtDate(t.faelligAm) + ' ✎' : '+ Datum setzen')}</div>
         ${renderAttachmentLinks(t)}
       </div>
+      ${taskEditBtn(t.id)}
       <button class="small" title="Dokument anhängen" onclick="pickFilesForTask('${t.id}')">📎 +</button>
     </div>
   `).join('') : `<div class="empty-state">Keine offenen Wiedervorlagen. 👍</div>`;
@@ -2741,6 +3300,7 @@ function renderFollowups() {
   const open = fu.filter(t => !t.erledigt).sort((a, b) => (a.followupEventDate || a.kaDue || '').localeCompare(b.followupEventDate || b.kaDue || ''));
   const done = fu.filter(t => t.erledigt).sort((a, b) => (b.erledigtAm || b.createdAt || '').localeCompare(a.erledigtAm || a.createdAt || '')).slice(0, 15);
   document.getElementById('countFollowups').textContent = open.length;
+  const fu2 = document.getElementById('countFollowups2'); if (fu2) fu2.textContent = open.length;
 
   const daysSince = iso => {
     const d = iso ? new Date(iso) : null;
@@ -3018,7 +3578,11 @@ async function deleteContactFromDetail(contactId) {
 }
 
 // ---------- Aufgaben-Modal ----------
+let editingTaskId = null;
 function openTaskModal(contactId) {
+  editingTaskId = null;
+  document.getElementById('taskModalTitle').textContent = 'Neue Wiedervorlage';
+  document.getElementById('btnDeleteTask').style.display = 'none';
   taskModalContactId = contactId;
   document.getElementById('t-text').value = '';
   document.getElementById('t-datum').value = '';
@@ -3068,6 +3632,29 @@ async function addFilesToTask() {
 function closeTaskModal() {
   document.getElementById('taskModalBackdrop').classList.remove('active');
   taskModalContactId = null;
+  editingTaskId = null;
+}
+function openTaskEdit(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  openTaskModal(t.contactId || null);
+  editingTaskId = id;
+  const c = t.contactId ? contacts.find(x => x.id === t.contactId) : null;
+  document.getElementById('taskModalTitle').textContent = 'Aufgabe bearbeiten' + (c ? ' – ' + (c.firma || c.name || '') : '');
+  document.getElementById('btnDeleteTask').style.display = '';
+  document.getElementById('t-text').value = t.text || '';
+  document.getElementById('t-datum').value = t.faelligAm ? localDayKey(t.faelligAm) : '';
+  setTimeout(() => { const ta = document.getElementById('t-text'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 30);
+}
+async function deleteEditingTask() {
+  if (!editingTaskId || !fbDb) return;
+  if (!confirm('Aufgabe wirklich löschen?')) return;
+  await fbDb.collection('crmTasks').doc(editingTaskId).delete();
+  toast('Aufgabe gelöscht.');
+  closeTaskModal();
+}
+function taskEditBtn(id) {
+  return `<button class="small note-btn" style="display:inline-block;" title="Bearbeiten" onclick="event.stopPropagation(); openTaskEdit('${id}')">✎</button>`;
 }
 async function saveTask() {
   const text = document.getElementById('t-text').value.trim();
@@ -3080,6 +3667,15 @@ async function saveTask() {
   try {
     const attachments = await uploadTaskFiles(taskModalContactId, files,
       (i, n) => { btn.textContent = `Lade hoch ${i}/${n} …`; });
+    if (editingTaskId) {
+      const old = tasks.find(x => x.id === editingTaskId);
+      const upd = { text, faelligAm: document.getElementById('t-datum').value || (old && old.faelligAm) || null };
+      if (attachments.length) upd.attachments = [...((old && old.attachments) || []), ...attachments];
+      await fbDb.collection('crmTasks').doc(editingTaskId).update(upd);
+      toast('Aufgabe gespeichert.');
+      closeTaskModal();
+      return;
+    }
     await fbDb.collection('crmTasks').add({
       contactId: taskModalContactId,
       text,
@@ -3393,7 +3989,9 @@ function renderCalendar() {
           <div style="font-size:12px; display:flex; align-items:center; gap:8px;">
             ${c
               ? `<span style="color:var(--gold-soft);">${escapeHtml(c.name)}</span> <a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">ändern</a>`
-              : `<a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">+ Kontakt zuordnen</a>`}
+              : (() => { const sg = suggestContactsForEvent(e)[0];
+                  return (sg ? `<span style="color:var(--cream-dim);">Vorschlag:</span> <a href="#" title="Übernehmen" onclick="acceptEventSuggestion('${e.id}', '${sg.id}'); return false;" style="color:var(--gold-soft); font-weight:600;">✓ ${escapeHtml(sg.firma || sg.name || '')}</a> `
+                    : '') + `<a href="#" onclick="openEventAssignModal('${e.id}'); return false;" style="color:var(--cream-dim);">${sg ? 'anderer' : '+ Kontakt zuordnen'}</a>`; })()}
             <a href="#" onclick="openEventModal('${e.id}'); return false;" style="color:var(--cream-dim);">bearbeiten</a>
           </div>
         </div>
@@ -3403,6 +4001,44 @@ function renderCalendar() {
 }
 
 // ---------- Termin-Kontakt-Zuordnung ----------
+// Vorschlag aus Titel und Ort des Termins: Firmen-/Namensteile, die im Text vorkommen.
+const SUGGEST_STOP = new Set(['ag','gmbh','sa','sagl','spa','s.p.a.','srl','s.r.l.','kg','co','und','the','der','die','das','von','mit','für',
+  'service','services','haushalt','hotel','restaurant','shop','store','group','holding','schweiz','suisse','swiss','international',
+  'trading','handel','design','home','team','meeting','termin','besuch','call','lieferung','versand','event','messe','zürich','zurich']);
+function suggestTokens(str) {
+  return String(str || '').toLowerCase().split(/[\s,.;:()\/\-–|]+/)
+    .filter(w => (w.length >= 4 || w.includes('&')) && !SUGGEST_STOP.has(w));
+}
+function suggestContactsForEvent(e) {
+  if (!e) return [];
+  const hay = ' ' + `${e.titel || ''} ${e.ort || ''}`.toLowerCase().replace(/[,.;:()\/\-–|]+/g, ' ') + ' ';
+  const words = new Set(hay.trim().split(/\s+/));
+  const scored = [];
+  contacts.forEach(c => {
+    const isEmp = contactType(c) === 'mitarbeiter';
+    let score = 0;
+    const firma = (c.firma || '').toLowerCase().trim();
+    const name = (c.name || '').toLowerCase().trim();
+    if (firma && firma.length >= 4 && hay.includes(' ' + firma + ' ')) score += 10;
+    if (!isEmp && name && name !== firma && name.length >= 4 && hay.includes(' ' + name + ' ')) score += 10;
+    const toks = new Set([...suggestTokens(c.firma), ...(isEmp ? [] : suggestTokens(c.name))]);
+    toks.forEach(t => { if (words.has(t)) score += Math.min(t.length, 8); });
+    // Vorname eines Mitarbeiters im Titel -> schwacher Hinweis
+    if (isEmp && name) { const first = name.split(/\s+/)[0]; if (first.length >= 4 && words.has(first)) score += 3; }
+    if (score >= 3) scored.push({ c, score: score + (c.status === 'produzent' ? 0 : 0.5) });
+  });
+  scored.sort((a, b) => b.score - a.score);
+  // Mitarbeiter auf ihre Firma abbilden? Nein – Person direkt vorschlagen, Firma ist verknüpft.
+  const seen = new Set();
+  return scored.filter(x => !seen.has(x.c.id) && seen.add(x.c.id)).slice(0, 3).map(x => x.c);
+}
+async function acceptEventSuggestion(eventId, contactId) {
+  if (!fbDb) return;
+  await fbDb.collection('crmEvents').doc(eventId).update({ contactId });
+  toast('Termin zugeordnet.');
+  touchContact(contactId);
+}
+
 let eventAssignId = null;
 
 function openEventAssignModal(eventId) {
@@ -3420,13 +4056,23 @@ function openEventAssignModal(eventId) {
 function renderEventAssignResults() {
   const q = document.getElementById('eventAssignSearch').value.trim().toLowerCase();
   const resultsEl = document.getElementById('eventAssignResults');
-  if (!q) { resultsEl.innerHTML = `<div class="empty-state" style="padding:12px;">Namen eintippen zum Suchen…</div>`; return; }
-  const matches = contacts.filter(c =>
-    (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q)
-  ).slice(0, 8);
+  let matches;
+  let head = '';
+  if (!q) {
+    const ev = (eventAssignId && !phoneEmployeeAssignId && !companyLinkContactId && !phoneContactAssignId && !reviewDocAssignId)
+      ? events.find(x => x.id === eventAssignId) : null;
+    matches = ev ? suggestContactsForEvent(ev) : [];
+    if (!matches.length) { assignResultIds = []; resultsEl.innerHTML = `<div class="empty-state" style="padding:12px;">Namen eintippen zum Suchen…</div>`; return; }
+    head = `<div style="font-size:11.5px; color:var(--gold-soft); font-weight:600; margin:2px 4px 4px;">Vorschlag – Enter übernimmt den ersten</div>`;
+  } else {
+    matches = contacts.filter(c =>
+      (c.name || '').toLowerCase().includes(q) || (c.firma || '').toLowerCase().includes(q)
+    ).sort((a, b) => (contactType(a) === 'mitarbeiter') - (contactType(b) === 'mitarbeiter')).slice(0, 8);
+  }
+  assignResultIds = matches.map(c => c.id);
   if (!matches.length) { resultsEl.innerHTML = `<div class="empty-state" style="padding:12px;">Keine Treffer.</div>`; return; }
-  resultsEl.innerHTML = matches.map(c => `
-    <div class="row-with-avatar" style="padding:8px 4px; cursor:pointer; border-bottom:1px solid var(--anthracite-700);" onclick="handleAssignSelection('${c.id}')">
+  resultsEl.innerHTML = head + matches.map((c, i) => `
+    <div class="row-with-avatar" style="padding:8px 4px; cursor:pointer; border-bottom:1px solid var(--anthracite-700);${i === 0 ? ' background:var(--anthracite-700); border-radius:6px;' : ''}" onclick="handleAssignSelection('${c.id}')">
       ${avatarHtml(c, 'small')}
       <div>
         <div style="font-size:13.5px;">${escapeHtml(c.name || '')}</div>
@@ -3437,6 +4083,16 @@ function renderEventAssignResults() {
 }
 
 let companyLinkContactId = null;
+let assignResultIds = [];
+// Suchfeld im Zuordnen-Fenster: sofort tippbereit, Enter nimmt den ersten Treffer, Esc schliesst
+new MutationObserver(() => {
+  const bd = document.getElementById('eventAssignModalBackdrop');
+  if (bd && bd.classList.contains('active')) setTimeout(() => document.getElementById('eventAssignSearch').focus(), 30);
+}).observe(document.getElementById('eventAssignModalBackdrop'), { attributes: true, attributeFilter: ['class'] });
+document.getElementById('eventAssignSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && assignResultIds.length) { e.preventDefault(); handleAssignSelection(assignResultIds[0]); }
+  else if (e.key === 'Escape') document.getElementById('eventAssignModalBackdrop').classList.remove('active');
+});
 
 function openCompanyLinkModal(contactId) {
   companyLinkContactId = contactId;
@@ -3893,23 +4549,47 @@ async function handlePipelineDrop(event, stageId) {
   await changeContactStatus(contactId, stageId);
 }
 
+const TAB_ALIAS = { followups: 'tasks' }; // Follow-ups liegen unter «Aufgaben»
 function switchToTab(viewName) {
+  const view = document.getElementById('view-' + viewName);
+  if (!view) return;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.querySelector(`.tab[data-view="${viewName}"]`).classList.add('active');
-  document.getElementById('view-' + viewName).classList.add('active');
+  const tab = document.querySelector(`.tab[data-view="${TAB_ALIAS[viewName] || viewName}"]`);
+  if (tab) tab.classList.add('active');
+  view.classList.add('active');
+  const moreBtn = document.getElementById('moreBtn');
+  if (moreBtn) moreBtn.classList.toggle('active', !!(tab && tab.closest('#moreMenu')));
+  closeMoreMenu();
+  if (viewName === 'calendar') calendarGoToday();
+  if (viewName === 'planner') renderPlanner();
+  if (viewName === 'dashboard') renderDashboard();
+  window.scrollTo(0, 0);
+  updateFabs();
 }
+
+function updateFabs() {
+  const dash = document.getElementById('view-dashboard');
+  const fd = document.getElementById('fabDash'), ft = document.getElementById('fabTop');
+  if (!fd || !ft) return;
+  fd.classList.toggle('show', !(dash && dash.classList.contains('active')));
+  ft.classList.toggle('show', window.scrollY > 400);
+}
+window.addEventListener('scroll', updateFabs, { passive: true });
+
+function toggleMoreMenu(ev) {
+  if (ev) ev.stopPropagation();
+  document.getElementById('moreMenu').classList.toggle('open');
+}
+function closeMoreMenu() {
+  const m = document.getElementById('moreMenu');
+  if (m) m.classList.remove('open');
+}
+document.addEventListener('click', e => { if (!e.target.closest('.more-wrap')) closeMoreMenu(); });
 
 // ---------- Tabs & Events ----------
 document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('view-' + tab.dataset.view).classList.add('active');
-    if (tab.dataset.view === 'calendar') calendarGoToday();
-    if (tab.dataset.view === 'planner') renderPlanner();
-  });
+  tab.addEventListener('click', () => switchToTab(tab.dataset.view));
 });
 
 // Kontakt-Suche mit Trefferliste - einmal oben (klebt beim Scrollen) und einmal
@@ -3949,6 +4629,7 @@ function setupContactSearch(inputId, dropdownId, filtersGrid) {
     input.blur();
     hl = 0;
     if (filtersGrid) renderContacts();
+    if (!document.getElementById('view-contacts').classList.contains('active')) switchToTab('contacts');
     selectContact(id);
   };
   input.addEventListener('input', () => { if (filtersGrid) renderContacts(); render(); });
@@ -3963,6 +4644,7 @@ function setupContactSearch(inputId, dropdownId, filtersGrid) {
   });
 }
 setupContactSearch('contactSearch', 'contactSearchDropdown', true);
+setupContactSearch('dashSearch', 'dashSearchDropdown', false);
 fillBrandFilter();
 setupContactSearch('contactSearchBottom', 'contactSearchBottomDropdown', false);
 document.getElementById('btnNewContact').addEventListener('click', () => openContactModal(null));
