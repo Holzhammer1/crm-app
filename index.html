@@ -818,6 +818,19 @@
     <h2 id="taskModalTitle">Neue Wiedervorlage</h2>
     <div class="form-grid">
       <div class="full"><label>Was?</label><textarea id="t-text" rows="3" placeholder="z. B. Offerte nachfassen"></textarea></div>
+      <div class="full">
+        <label>Kunde / Kontakt</label>
+        <div id="t-contact-chip" style="display:none; align-items:center; gap:8px; padding:7px 10px; border:1px solid var(--anthracite-line); border-radius:6px; background:#fbf8f1;">
+          <span style="flex:1; color:var(--gold-soft); font-weight:600;" id="t-contact-chip-label"></span>
+          <a href="#" onclick="clearTaskContact(); return false;" style="color:var(--cream-dim); font-size:12.5px;">ändern</a>
+        </div>
+        <div id="t-contact-pick" style="position:relative;">
+          <input type="text" id="t-contact-search" autocomplete="off" placeholder="Kunde suchen (Firma, Name, Ort) – leer lassen = ohne Kunde"
+                 oninput="renderTaskContactSuggest()" onfocus="renderTaskContactSuggest()" onkeydown="taskContactKey(event)"
+                 onblur="setTimeout(() => { const s = document.getElementById('t-contact-suggest'); if (s) s.style.display = 'none'; }, 180)">
+          <div id="t-contact-suggest" style="display:none; position:absolute; left:0; right:0; top:100%; z-index:50; max-height:240px; overflow-y:auto; background:#fff; border:1px solid var(--anthracite-line); border-radius:6px; box-shadow:var(--shadow); margin-top:2px;"></div>
+        </div>
+      </div>
       <div><label>Fällig am</label><input type="date" id="t-datum"></div>
       <div class="full">
         <label>Dokumente (optional)</label>
@@ -2744,6 +2757,7 @@ function renderContactDetailInner(id) {
       </div>
       <div style="display:flex; gap:8px;">
         ${bexioStatusHtml(c)}
+        <button class="small primary" onclick="openTaskModal('${c.id}')" title="Aufgabe / Wiedervorlage für diesen Kunden">+ Aufgabe</button>
         <button class="small" onclick="openContactModal('${c.id}')">Bearbeiten</button>
         <button class="small ghost" onclick="deleteContactFromDetail('${c.id}')">Löschen</button>
       </div>
@@ -2816,7 +2830,7 @@ function renderContactDetailInner(id) {
     </div>
     <div class="sub-view" data-sub="notes">
       ${c.notiz ? `<div class="field" style="white-space:pre-wrap; margin-bottom:14px;">${escapeHtml(c.notiz)}</div>` : ''}
-      <button class="small" onclick="openTaskModal('${c.id}')">+ Wiedervorlage</button>
+      <button class="small" onclick="openTaskModal('${c.id}')">+ Aufgabe</button>
       <div style="margin-top:12px;">${renderTaskListInline(contactTasks)}</div>
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:22px; margin-bottom:8px;">
@@ -3312,7 +3326,9 @@ function renderTasks() {
     <div class="task-item">
       <input type="checkbox" onchange="toggleTask('${t.id}', this.checked)">
       <div style="flex:1;">
-        <div class="task-text">${escapeHtml(t.text||'')} ${withContactName(t) ? `— <span style="color:var(--gold-soft)">${escapeHtml(withContactName(t))}</span>` : ''}</div>
+        <div class="task-text">${escapeHtml(t.text||'')} ${withContactName(t)
+          ? `— <a href="#" onclick="dashOpenContact('${t.contactId}'); return false;" style="color:var(--gold-soft); text-decoration:none;" title="Kunde öffnen">${escapeHtml(withContactName(t))}</a>`
+          : `<a href="#" onclick="openTaskEdit('${t.id}'); setTimeout(() => document.getElementById('t-contact-search').focus(), 60); return false;" style="color:var(--cream-dim); font-size:12.5px; margin-left:6px; white-space:nowrap;">+ Kunde zuteilen</a>`}</div>
         <div class="task-meta ${t.faelligAm && t.faelligAm < today ? 'overdue' : ''}">${dueEditHtml(t, t.faelligAm ? 'Fällig: ' + fmtDate(t.faelligAm) + ' ✎' : '+ Datum setzen')}</div>
         ${renderAttachmentLinks(t)}
       </div>
@@ -3637,11 +3653,66 @@ async function deleteContactFromDetail(contactId) {
 
 // ---------- Aufgaben-Modal ----------
 let editingTaskId = null;
+// Kunden-Auswahl im Aufgaben-Modal (Suche über alle Kontakte)
+function taskContactLabel(c) {
+  if (!c) return '';
+  const main = c.firma || c.name || '';
+  const sub = [c.firma && c.name && c.name !== c.firma ? c.name : '', c.ort].filter(Boolean).join(' · ');
+  return main + (sub ? ' — ' + sub : '');
+}
+function setTaskContact(id) {
+  taskModalContactId = id || null;
+  const c = id ? contacts.find(x => x.id === id) : null;
+  document.getElementById('t-contact-chip').style.display = c ? 'flex' : 'none';
+  document.getElementById('t-contact-pick').style.display = c ? 'none' : '';
+  document.getElementById('t-contact-chip-label').textContent = c ? taskContactLabel(c) : '';
+  document.getElementById('t-contact-search').value = '';
+  document.getElementById('t-contact-suggest').style.display = 'none';
+  const title = document.getElementById('taskModalTitle');
+  const base = editingTaskId ? 'Aufgabe bearbeiten' : 'Neue Aufgabe';
+  title.textContent = base + (c ? ' – ' + (c.firma || c.name || '') : '');
+}
+function clearTaskContact() {
+  setTaskContact(null);
+  setTimeout(() => document.getElementById('t-contact-search').focus(), 20);
+}
+let taskContactMatches = [];
+let taskContactActive = 0;
+function renderTaskContactSuggest() {
+  const box = document.getElementById('t-contact-suggest');
+  const q = document.getElementById('t-contact-search').value.trim().toLowerCase();
+  if (!q) { box.style.display = 'none'; taskContactMatches = []; return; }
+  const words = q.split(/\s+/);
+  taskContactMatches = contacts.filter(c => {
+    const hay = [c.firma, c.name, c.ort, c.email].filter(Boolean).join(' ').toLowerCase();
+    return words.every(w => hay.includes(w));
+  }).sort((a, b) => {
+    const an = (a.firma || a.name || '').toLowerCase(), bn = (b.firma || b.name || '').toLowerCase();
+    return (bn.startsWith(q) - an.startsWith(q)) || an.localeCompare(bn);
+  }).slice(0, 12);
+  taskContactActive = 0;
+  box.innerHTML = taskContactMatches.length ? taskContactMatches.map((c, i) => `
+    <div class="t-sug" data-i="${i}" onmousedown="event.preventDefault(); setTaskContact('${c.id}')"
+         style="padding:7px 10px; cursor:pointer; font-size:13.5px; ${i === 0 ? 'background:#f3ecdc;' : ''}">${escapeHtml(taskContactLabel(c))}</div>
+  `).join('') : `<div style="padding:7px 10px; color:var(--cream-dim); font-size:13px;">Kein Kontakt gefunden.</div>`;
+  box.style.display = 'block';
+}
+function taskContactKey(e) {
+  if (!taskContactMatches.length) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    taskContactActive = (taskContactActive + (e.key === 'ArrowDown' ? 1 : -1) + taskContactMatches.length) % taskContactMatches.length;
+    document.querySelectorAll('#t-contact-suggest .t-sug').forEach((el, i) => el.style.background = i === taskContactActive ? '#f3ecdc' : '');
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    setTaskContact(taskContactMatches[taskContactActive].id);
+  }
+}
+
 function openTaskModal(contactId) {
   editingTaskId = null;
-  document.getElementById('taskModalTitle').textContent = 'Neue Wiedervorlage';
   document.getElementById('btnDeleteTask').style.display = 'none';
-  taskModalContactId = contactId;
+  setTaskContact(contactId || null);
   document.getElementById('t-text').value = '';
   document.getElementById('t-datum').value = '';
   document.getElementById('t-files').value = '';
@@ -3697,8 +3768,7 @@ function openTaskEdit(id) {
   if (!t) return;
   openTaskModal(t.contactId || null);
   editingTaskId = id;
-  const c = t.contactId ? contacts.find(x => x.id === t.contactId) : null;
-  document.getElementById('taskModalTitle').textContent = 'Aufgabe bearbeiten' + (c ? ' – ' + (c.firma || c.name || '') : '');
+  setTaskContact(t.contactId || null);
   document.getElementById('btnDeleteTask').style.display = '';
   document.getElementById('t-text').value = t.text || '';
   document.getElementById('t-datum').value = t.faelligAm ? localDayKey(t.faelligAm) : '';
@@ -3727,10 +3797,12 @@ async function saveTask() {
       (i, n) => { btn.textContent = `Lade hoch ${i}/${n} …`; });
     if (editingTaskId) {
       const old = tasks.find(x => x.id === editingTaskId);
-      const upd = { text, faelligAm: document.getElementById('t-datum').value || (old && old.faelligAm) || null };
+      const upd = { text, faelligAm: document.getElementById('t-datum').value || (old && old.faelligAm) || null, contactId: taskModalContactId || null };
       if (attachments.length) upd.attachments = [...((old && old.attachments) || []), ...attachments];
       await fbDb.collection('crmTasks').doc(editingTaskId).update(upd);
-      toast('Aufgabe gespeichert.');
+      const reassigned = taskModalContactId && (!old || old.contactId !== taskModalContactId);
+      if (reassigned) touchContact(taskModalContactId);
+      toast(reassigned ? 'Aufgabe dem Kunden zugeteilt.' : 'Aufgabe gespeichert.');
       closeTaskModal();
       return;
     }
