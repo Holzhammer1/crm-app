@@ -809,9 +809,9 @@
 <!-- Aufgabe-Modal -->
 <div class="modal-backdrop" id="taskModalBackdrop">
   <div class="modal">
-    <h2>Neue Wiedervorlage</h2>
+    <h2 id="taskModalTitle">Neue Wiedervorlage</h2>
     <div class="form-grid">
-      <div class="full"><label>Was?</label><input type="text" id="t-text" placeholder="z. B. Offerte nachfassen"></div>
+      <div class="full"><label>Was?</label><textarea id="t-text" rows="3" placeholder="z. B. Offerte nachfassen"></textarea></div>
       <div><label>Fällig am</label><input type="date" id="t-datum"></div>
       <div class="full">
         <label>Dokumente (optional)</label>
@@ -822,6 +822,7 @@
     </div>
     <input type="file" id="t-add-files" multiple style="display:none;" onchange="addFilesToTask()">
     <div class="form-actions">
+      <button class="ghost" id="btnDeleteTask" style="display:none; margin-right:auto;" onclick="deleteEditingTask()">Löschen</button>
       <button id="btnCancelTask">Abbrechen</button>
       <button class="primary" id="btnSaveTask">Speichern</button>
     </div>
@@ -1408,6 +1409,7 @@ function renderDashboard() {
     return `<div class="dash-row">
       <input type="checkbox" title="erledigt" onchange="toggleTask('${t.id}', this.checked)">
       <div class="dr-main">${escapeHtml(t.text || (t.keyAccountId ? 'Key Account melden' : 'Follow-up'))}${who ? ` — <span class="dr-who" onclick="dashOpenContact('${t.contactId}')">${escapeHtml(who)}</span>` : ''}</div>
+      ${taskEditBtn(t.id)}
       <div class="dr-side${k < todayKey ? ' overdue' : ''}">${dueEditHtml(t, k === todayKey ? 'heute' : fmtDate(k))}</div>
     </div>`;
   }).join('') + (due.length > 12 ? `<div class="dash-empty">+ ${due.length - 12} weitere – <a href="#" onclick="switchToTab('tasks'); return false;">alle anzeigen</a></div>` : '')
@@ -2962,7 +2964,7 @@ function renderTaskListInline(list) {
         ${t.faelligAm ? `<div class="task-meta ${(!t.erledigt && t.faelligAm < today) ? 'overdue' : ''}">${t.erledigt ? 'Fällig: ' + fmtDate(t.faelligAm) : dueEditHtml(t, 'Fällig: ' + fmtDate(t.faelligAm) + ' ✎')}</div>` : ''}
         ${renderAttachmentLinks(t)}
       </div>
-      ${t.erledigt ? '' : `<button class="small" title="Dokument anhängen" onclick="pickFilesForTask('${t.id}')">📎 +</button>`}
+      ${t.erledigt ? '' : taskEditBtn(t.id) + `<button class="small" title="Dokument anhängen" onclick="pickFilesForTask('${t.id}')">📎 +</button>`}
     </div>
   `).join('');
 }
@@ -3256,6 +3258,7 @@ function renderTasks() {
         <div class="task-meta ${t.faelligAm && t.faelligAm < today ? 'overdue' : ''}">${dueEditHtml(t, t.faelligAm ? 'Fällig: ' + fmtDate(t.faelligAm) + ' ✎' : '+ Datum setzen')}</div>
         ${renderAttachmentLinks(t)}
       </div>
+      ${taskEditBtn(t.id)}
       <button class="small" title="Dokument anhängen" onclick="pickFilesForTask('${t.id}')">📎 +</button>
     </div>
   `).join('') : `<div class="empty-state">Keine offenen Wiedervorlagen. 👍</div>`;
@@ -3575,7 +3578,11 @@ async function deleteContactFromDetail(contactId) {
 }
 
 // ---------- Aufgaben-Modal ----------
+let editingTaskId = null;
 function openTaskModal(contactId) {
+  editingTaskId = null;
+  document.getElementById('taskModalTitle').textContent = 'Neue Wiedervorlage';
+  document.getElementById('btnDeleteTask').style.display = 'none';
   taskModalContactId = contactId;
   document.getElementById('t-text').value = '';
   document.getElementById('t-datum').value = '';
@@ -3625,6 +3632,29 @@ async function addFilesToTask() {
 function closeTaskModal() {
   document.getElementById('taskModalBackdrop').classList.remove('active');
   taskModalContactId = null;
+  editingTaskId = null;
+}
+function openTaskEdit(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  openTaskModal(t.contactId || null);
+  editingTaskId = id;
+  const c = t.contactId ? contacts.find(x => x.id === t.contactId) : null;
+  document.getElementById('taskModalTitle').textContent = 'Aufgabe bearbeiten' + (c ? ' – ' + (c.firma || c.name || '') : '');
+  document.getElementById('btnDeleteTask').style.display = '';
+  document.getElementById('t-text').value = t.text || '';
+  document.getElementById('t-datum').value = t.faelligAm ? localDayKey(t.faelligAm) : '';
+  setTimeout(() => { const ta = document.getElementById('t-text'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 30);
+}
+async function deleteEditingTask() {
+  if (!editingTaskId || !fbDb) return;
+  if (!confirm('Aufgabe wirklich löschen?')) return;
+  await fbDb.collection('crmTasks').doc(editingTaskId).delete();
+  toast('Aufgabe gelöscht.');
+  closeTaskModal();
+}
+function taskEditBtn(id) {
+  return `<button class="small note-btn" style="display:inline-block;" title="Bearbeiten" onclick="event.stopPropagation(); openTaskEdit('${id}')">✎</button>`;
 }
 async function saveTask() {
   const text = document.getElementById('t-text').value.trim();
@@ -3637,6 +3667,15 @@ async function saveTask() {
   try {
     const attachments = await uploadTaskFiles(taskModalContactId, files,
       (i, n) => { btn.textContent = `Lade hoch ${i}/${n} …`; });
+    if (editingTaskId) {
+      const old = tasks.find(x => x.id === editingTaskId);
+      const upd = { text, faelligAm: document.getElementById('t-datum').value || (old && old.faelligAm) || null };
+      if (attachments.length) upd.attachments = [...((old && old.attachments) || []), ...attachments];
+      await fbDb.collection('crmTasks').doc(editingTaskId).update(upd);
+      toast('Aufgabe gespeichert.');
+      closeTaskModal();
+      return;
+    }
     await fbDb.collection('crmTasks').add({
       contactId: taskModalContactId,
       text,
