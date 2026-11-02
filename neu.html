@@ -552,6 +552,8 @@
         <option value="gastro">Gastro-Distributor (alle 4 Wochen)</option>
         <option value="keiner">kein Key Account</option>
       </select>
+      <button class="primary" onclick="openBulkNote()">📝 Notiz für Auswahl</button>
+      <button onclick="selectByMailSubject()" title="Alle Kontakte auswählen, denen du eine Mail mit diesem Betreff gesendet hast">✉ Nach Mail-Betreff auswählen</button>
       <button id="btnBulkDelete" style="color:#e07a7a;">Löschen</button>
       <button id="btnBulkCancel">Abbrechen</button>
     </div>
@@ -1193,6 +1195,52 @@ async function fbLoadAll() {
   }, () => {});
 }
 
+
+// ---------- Notiz für mehrere Kontakte ----------
+function openBulkNote() {
+  const ids = [...bulkSelectedIds];
+  if (!ids.length) { toast('Zuerst Kontakte auswählen.'); return; }
+  openActivityModal(null, null, 'email');
+  activityModalBulkIds = ids;
+  document.getElementById('act-title').textContent = `Kontakt notieren – ${ids.length} Kontakte`;
+}
+
+// Wählt alle Firmen/Kontakte aus, denen in den letzten Tagen eine Mail mit diesem Betreff gesendet wurde.
+function selectByMailSubject() {
+  const word = prompt('Betreff enthält (z. B. Ambiente):', 'Ambiente');
+  if (!word) return;
+  const daysStr = prompt('Gesendet in den letzten … Tagen:', '1');
+  if (daysStr === null) return;
+  const days = Math.max(1, parseInt(daysStr, 10) || 1);
+  const since = Date.now() - days * 86400000;
+  const w = word.trim().toLowerCase();
+  const sent = emails.filter(e => e.direction === 'gesendet' && (e.subject || '').toLowerCase().includes(w) && Date.parse(e.date) >= since);
+  // Adresse -> Kontakt, Domain -> Firma
+  const byAddr = new Map(), byDomain = new Map();
+  contacts.forEach(c => {
+    const target = (contactType(c) === 'mitarbeiter' && c.firmaKontaktId) ? c.firmaKontaktId : c.id;
+    [c.email, ...(c.weitereEmails || [])].filter(Boolean).forEach(m => {
+      const a = String(m).toLowerCase().trim();
+      byAddr.set(a, target);
+      const d = a.split('@')[1];
+      if (d && !NO_LOGO_DOMAINS.has(d) && contactType(c) !== 'mitarbeiter' && !byDomain.has(d)) byDomain.set(d, c.id);
+    });
+    const wd = domainFromWebsite(c.website);
+    if (wd && contactType(c) !== 'mitarbeiter' && !byDomain.has(wd)) byDomain.set(wd, c.id);
+  });
+  const found = new Set(), unknown = new Set();
+  sent.forEach(e => [...(e.participants || []), e.to].map(mailAddrOf).filter(Boolean).forEach(a => {
+    const id = byAddr.get(a) || byDomain.get(a.split('@')[1]);
+    if (id) found.add(id); else if (!/(trendsense|kawea)\.ch$/.test(a)) unknown.add(a);
+  }));
+  if (!bulkMode) setBulkMode(true);
+  found.forEach(id => bulkSelectedIds.add(id));
+  updateBulkBar();
+  renderContacts();
+  if (!sent.length) { toast(`Keine gesendeten Mails mit «${word}» gefunden.`); return; }
+  toast(`${sent.length} Mail(s) gefunden · ${found.size} Kontakt(e) ausgewählt${unknown.size ? ` · ${unknown.size} Adresse(n) nicht im CRM` : ''}`);
+  if (unknown.size) console.log('Nicht im CRM:', [...unknown].join(', '));
+}
 
 // ---------- Letzte Notiz ----------
 function lastActivityFor(c) {
@@ -2857,6 +2905,7 @@ function renderActivityListInline(list) {
 let activityModalContactId = null;
 
 let activityModalEventId = null;
+let activityModalBulkIds = null; // Notiz für mehrere Kontakte gleichzeitig
 const ACT_IDEAS = {
   anruf: ['Neuheiten vorgestellt', 'Nach Bestellung gefragt', 'Offerte besprochen', 'Termin vereinbart', 'Nicht erreicht – Rückruf erbeten', 'Nachbestellung angeregt', 'Weihnachtsgeschäft besprochen', 'Abverkauf / Lagerbestand nachgefragt'],
   email: ['Neuheiten / Katalog gesendet', 'Preisliste gesendet', 'Offerte gesendet', 'Auf Offerte nachgefasst', 'Messe-Einladung gesendet', 'Aktion / Sonderkondition angeboten', 'Lieferstatus mitgeteilt', 'Dank für Bestellung'],
@@ -2901,6 +2950,7 @@ function closeActivityModal() {
   document.getElementById('activityModalBackdrop').classList.remove('active');
   activityModalContactId = null;
   activityModalEventId = null;
+  activityModalBulkIds = null;
 }
 function renderActivityFileList() {
   const files = [...(document.getElementById('act-files').files || [])];
@@ -2913,6 +2963,33 @@ async function saveActivity() {
   if (!fbDb) { toast('Keine Verbindung zur Datenbank.'); return; }
   if (files.length && !fbStorage) { toast('Dokumente-Speicher nicht verfügbar.'); return; }
   const btn = document.getElementById('btnSaveActivity');
+  if (activityModalBulkIds) {
+    if (files.length) { toast('Dateien gehen nur bei einem einzelnen Kontakt.'); return; }
+    btn.disabled = true;
+    try {
+      const ids = activityModalBulkIds;
+      const typ = document.getElementById('act-typ').value;
+      const now = new Date().toISOString();
+      const dueKey = actFollowupDays > 0 ? localDayKey(new Date(Date.now() + actFollowupDays * 86400000)) : null;
+      for (let i = 0; i < ids.length; i += 200) {
+        const batch = fbDb.batch();
+        ids.slice(i, i + 200).forEach(id => {
+          batch.set(fbDb.collection('crmActivities').doc(), { contactId: id, typ, text, attachments: [], createdAt: now, createdBy: currentUserName || null });
+          batch.update(fbDb.collection('crmContacts').doc(id), { lastActivityAt: now, lastEditedBy: currentUserName || null });
+          if (dueKey) batch.set(fbDb.collection('crmTasks').doc(), { contactId: id, text: 'Wieder melden' + (text ? ': ' + text.slice(0, 70) : ''), faelligAm: dueKey, erledigt: false, attachments: [], createdAt: now });
+        });
+        await batch.commit();
+      }
+      toast(`Notiz bei ${ids.length} Kontakt(en) gespeichert.`);
+      closeActivityModal();
+      setBulkMode(false);
+    } catch (e) {
+      toast(`Fehler: ${e.message || e}`);
+    } finally {
+      btn.disabled = false;
+    }
+    return;
+  }
   btn.disabled = true;
   const contactId = activityModalContactId;
   try {
